@@ -4,10 +4,10 @@ import math
 
 from pathlib import Path
 from dataclasses import dataclass
-from collections.abc import Iterable
+from functools import cache
 
 COST_OF_NOT_PAIRING = 100
-COST_OF_PARING_WITHIN_ORG = 10
+COST_OF_PARING_WITHIN_ORG = 50
 COST_OF_PARING_PREVIOUS_PARTNERS = 100
 
 
@@ -17,7 +17,7 @@ class Person:
     organisation: str
 
 
-Round = set[Person]
+Round = list[Person]
 Pairing = dict[Person, Person]
 Cost = float
 
@@ -26,9 +26,19 @@ def coffee_pairs(
     people: Round, previous_pairings: list[Pairing]
 ) -> tuple[Cost, Pairing]:
 
-    global_best = math.inf
+    calls = set()
 
+    # TODO: is this more or less expensive
+    @cache
     def cost_of_paring(p1: Person, p2: Person):
+        # if p1 == p2:
+        #     raise Exception
+        # s = frozenset({p1, p2})
+        # if s in calls:
+        #     print(s)
+        #
+        # calls.add(s)
+
         cost = 0
         if p1.organisation == p2.organisation:
             cost += COST_OF_PARING_WITHIN_ORG
@@ -40,7 +50,9 @@ def coffee_pairs(
             cost += COST_OF_PARING_PREVIOUS_PARTNERS / (len(previous_pairings) - n)
         return cost
 
-    def recurse(people, curr_cost):
+    global_best = math.inf
+
+    def recurse(mask, curr_cost):
         nonlocal global_best
 
         best_pairing = None
@@ -49,40 +61,54 @@ def coffee_pairs(
         # pairs can be paired without penalty) plus COST_OF_NOT_PAIRING if
         # odd number of people left
         bound = curr_cost
-        if len(people) % 2 == 1:
+        if sum(not p for p in mask) % 2 == 1:
             bound += COST_OF_NOT_PAIRING
         if bound >= global_best:
             return (math.inf, {})
 
-        if not people and curr_cost < global_best:
+        if all(mask) and curr_cost < global_best:
+            # we're out of people and we have a new best soln
             global_best = curr_cost
             print(global_best)
             return global_best, {}
 
-        p1, *rest = people
-        rest = sorted(rest, key=lambda p2: cost_of_paring(p1, p2))
+        i, p1 = next((i, p1) for (i, p1) in enumerate(people) if not mask[i])
+        # candidates = sorted(
+        #     [(j, p2) for (j, p2) in enumerate(people) if j != i and not mask[j]],
+        #     key=lambda t: cost_of_paring(p1, t[1]),
+        # )
+        candidates = (
+            (j, p2) for (j, p2) in enumerate(people) if j != i and not mask[j]
+        )
 
-        for p2 in rest:
-            new_cost, new_pairs = recurse(
-                people - {p1, p2}, curr_cost + cost_of_paring(p1, p2)
-            )
+        for j, p2 in candidates:
+            if mask[j]:
+                continue
+            new_mask = mask.copy()
+            new_mask[i] = new_mask[j] = True
+            new_cost, new_pairs = recurse(new_mask, curr_cost + cost_of_paring(p1, p2))
             if new_cost == global_best:
                 best_pairing = new_pairs | {p1: p2, p2: p1}
 
-        new_cost, new_pairs = recurse(people - {p1}, curr_cost + COST_OF_NOT_PAIRING)
+        new_mask = mask.copy()
+        new_mask[i] = True
+        new_cost, new_pairs = recurse(new_mask, curr_cost + COST_OF_NOT_PAIRING)
         if new_cost == global_best:
             best_pairing = new_pairs
 
-        if best_pairing is not None:
-            return global_best, best_pairing
+        if best_pairing is None:
+            return math.inf, {}
+        return global_best, best_pairing
 
-        return math.inf, {}
+    # TODO: do the hardest first: sort people by some rank of how hard they are to pair, say:
+    #     number of previous pairings + number of people in their company - number of people
+    mask = [False] * len(people)
 
-    return recurse(people, 0)
+    return recurse(mask, 0)
 
 
 def main():
-    round: Round = set()
+    round: Round = []
     people_by_name: dict[str, Person] = {}
 
     with open("data/people.csv") as f:
@@ -94,7 +120,7 @@ def main():
 
             people_by_name[p.name] = p
             if active:
-                round.add(p)
+                round.append(p)
 
     # get the previous rounds files ordered by numbered suffix
     round_paths = sorted(
@@ -118,7 +144,11 @@ def main():
     print(cost)
 
     # print unique pairs
-    N = int(round_paths[-1].stem.removeprefix("round_")) + 1
+    try:
+        N = int(round_paths[-1].stem.removeprefix("round_")) + 1
+    except IndexError:
+        N = 1
+
     with Path("data").joinpath(f"round_{N:03d}.csv").open("w") as f:
         for p1, p2 in set(map(frozenset, pairings.items())):
             print(p1.name, p2.name, sep=",", file=f)
