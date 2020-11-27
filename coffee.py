@@ -11,7 +11,7 @@ from functools import cache
 
 # NB: these must all be integers!
 COST_OF_NOT_PAIRING = 100  # Currently not used
-COST_OF_PARING_WITHIN_ORG = 200
+COST_OF_PARING_WITHIN_ORG = 250
 COST_OF_PARING_PREVIOUS_PARTNERS = 100
 
 # TODO: class people as "organisers" or "coffee buyers" and prefer to alternate
@@ -31,7 +31,6 @@ Cost = float
 def coffee_pairs(people: Round, previous_pairings: list[Pairing]) -> Pairing:
     def weight_of_pair(p1: Person, p2: Person):
         cost = 0
-
         if p1.organisation == p2.organisation:
             cost += COST_OF_PARING_WITHIN_ORG
 
@@ -40,10 +39,14 @@ def coffee_pairs(people: Round, previous_pairings: list[Pairing]) -> Pairing:
                 continue
             if pairing[p1] is not p2:
                 continue
+
+            # TODO: this should take into account the last time this pair was *available*
+
             if len(previous_pairings) - n == 1:
-                cost += 1000000
+                cost += 100_000
             elif len(previous_pairings) - n < 10:
                 cost += COST_OF_PARING_PREVIOUS_PARTNERS
+        print(p1, p2, cost)
         return cost
 
     N = len(people)
@@ -55,14 +58,15 @@ def coffee_pairs(people: Round, previous_pairings: list[Pairing]) -> Pairing:
 
     # Constraint: a person can only be in one pair; dogleg sum
     for j in range(N):
-        m += (
+        m.add_constr(
             mip.xsum(
-                m.var_by_name(f"pair_{i}_{j}")
+                1 * m.var_by_name(f"pair_{i}_{j}")
                 for (i, j) in chain(
                     ((i, j) for i in range(j)), ((j, i) for i in range(j + 1, N))
                 )
             )
-            == 1
+            == 1,
+            f"person_{j}",
         )
 
     m.objective = mip.minimize(
@@ -71,14 +75,32 @@ def coffee_pairs(people: Round, previous_pairings: list[Pairing]) -> Pairing:
             for i, j in pairs
         )
     )
-    m.optimize()
+    status = m.optimize()
+    print("status:", status)
 
     pairing = {}
     for (i, j) in pairs:
-        if m.var_by_name(f"pair_{i}_{j}").x < 0.99:
+        if m.var_by_name(f"pair_{i}_{j}").x < 0.5:
             continue
-        pairing[people[i]] = people[j]
         pairing[people[j]] = people[i]
+        pairing[people[i]] = people[j]
+
+    # for j in range(N):
+    #     if (
+    #         sum(
+    #             m.var_by_name(f"pair_{i}_{j}").x
+    #             for (i, j) in chain(
+    #                 ((i, j) for i in range(j)), ((j, i) for i in range(j + 1, N))
+    #             )
+    #         )
+    #         != 1.0
+    #     ):
+    # for c in m.constrs:
+    #     print(dir(c))
+
+    for i in range(N):
+        if people[i] not in pairing:
+            print(f"{i} not in soln")
     return pairing
 
 
