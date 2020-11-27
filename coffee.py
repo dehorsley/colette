@@ -2,13 +2,19 @@
 import csv
 import math
 
+import mip
+
+from itertools import chain
 from pathlib import Path
 from dataclasses import dataclass
 from functools import cache
 
-COST_OF_NOT_PAIRING = 100
-COST_OF_PARING_WITHIN_ORG = 50
+# NB: these must all be integers!
+COST_OF_NOT_PAIRING = 100  # Currently not used
+COST_OF_PARING_WITHIN_ORG = 200
 COST_OF_PARING_PREVIOUS_PARTNERS = 100
+
+# TODO: class people as "organisers" or "coffee buyers" and prefer to alternate
 
 
 @dataclass(frozen=True)
@@ -22,98 +28,66 @@ Pairing = dict[Person, Person]
 Cost = float
 
 
-def coffee_pairs(
-    people: Round, previous_pairings: list[Pairing]
-) -> tuple[Cost, Pairing]:
-
-    calls = set()
-
-    # TODO: is this more or less expensive
-    @cache
-    def cost_of_paring(p1: Person, p2: Person):
-        # if p1 == p2:
-        #     raise Exception
-        # s = frozenset({p1, p2})
-        # if s in calls:
-        #     print(s)
-        #
-        # calls.add(s)
-
+def coffee_pairs(people: Round, previous_pairings: list[Pairing]) -> Pairing:
+    def weight_of_pair(p1: Person, p2: Person):
         cost = 0
+
         if p1.organisation == p2.organisation:
             cost += COST_OF_PARING_WITHIN_ORG
+
         for n, pairing in enumerate(previous_pairings):
             if p1 not in pairing:
                 continue
             if pairing[p1] is not p2:
                 continue
-            cost += COST_OF_PARING_PREVIOUS_PARTNERS / (len(previous_pairings) - n)
+            if len(previous_pairings) - n == 1:
+                cost += 1000000
+            elif len(previous_pairings) - n < 10:
+                cost += COST_OF_PARING_PREVIOUS_PARTNERS
         return cost
 
-    global_best = math.inf
+    N = len(people)
 
-    def recurse(mask, curr_cost):
-        nonlocal global_best
+    m = mip.Model()
+    pairs = list(chain(*([(i, j) for j in range(i + 1, N)] for i in range(N - 1))))
 
-        best_pairing = None
+    p = [m.add_var(name=f"pair_{i}_{j}") for (i, j) in pairs]
 
-        # best case cost for rest of the branch is current cost (all remaining
-        # pairs can be paired without penalty) plus COST_OF_NOT_PAIRING if
-        # odd number of people left
-        bound = curr_cost
-        if sum(not p for p in mask) % 2 == 1:
-            bound += COST_OF_NOT_PAIRING
-        if bound >= global_best:
-            return (math.inf, {})
-
-        if all(mask) and curr_cost < global_best:
-            # we're out of people and we have a new best soln
-            global_best = curr_cost
-            print(global_best)
-            return global_best, {}
-
-        i, p1 = next((i, p1) for (i, p1) in enumerate(people) if not mask[i])
-        # candidates = sorted(
-        #     [(j, p2) for (j, p2) in enumerate(people) if j != i and not mask[j]],
-        #     key=lambda t: cost_of_paring(p1, t[1]),
-        # )
-        candidates = (
-            (j, p2) for (j, p2) in enumerate(people) if j != i and not mask[j]
+    # Constraint: a person can only be in one pair; dogleg sum
+    for j in range(N):
+        m += (
+            mip.xsum(
+                m.var_by_name(f"pair_{i}_{j}")
+                for (i, j) in chain(
+                    ((i, j) for i in range(j)), ((j, i) for i in range(j + 1, N))
+                )
+            )
+            == 1
         )
 
-        for j, p2 in candidates:
-            if mask[j]:
-                continue
-            new_mask = mask.copy()
-            new_mask[i] = new_mask[j] = True
-            new_cost, new_pairs = recurse(new_mask, curr_cost + cost_of_paring(p1, p2))
-            if new_cost == global_best:
-                best_pairing = new_pairs | {p1: p2, p2: p1}
+    m.objective = mip.minimize(
+        mip.xsum(
+            weight_of_pair(people[i], people[j]) * m.var_by_name(f"pair_{i}_{j}")
+            for i, j in pairs
+        )
+    )
+    m.optimize()
 
-        new_mask = mask.copy()
-        new_mask[i] = True
-        new_cost, new_pairs = recurse(new_mask, curr_cost + COST_OF_NOT_PAIRING)
-        if new_cost == global_best:
-            best_pairing = new_pairs
-
-        if best_pairing is None:
-            return math.inf, {}
-        return global_best, best_pairing
-
-    # TODO: do the hardest first: sort people by some rank of how hard they are to pair, say:
-    #     number of previous pairings + number of people in their company - number of people
-    mask = [False] * len(people)
-
-    return recurse(mask, 0)
+    pairing = {}
+    for (i, j) in pairs:
+        if m.var_by_name(f"pair_{i}_{j}").x < 0.99:
+            continue
+        pairing[people[i]] = people[j]
+        pairing[people[j]] = people[i]
+    return pairing
 
 
 def main():
     round: Round = []
     people_by_name: dict[str, Person] = {}
 
-    with open("data/people.csv") as f:
+    with open("test_data/people.csv") as f:
         for row in csv.DictReader(f):
-            # print(row)
             active = row["active"].casefold() == "true"
             del row["active"]
             p = Person(**row)
@@ -124,7 +98,7 @@ def main():
 
     # get the previous rounds files ordered by numbered suffix
     round_paths = sorted(
-        Path("data").glob("round_*.csv"),
+        Path("test_data").glob("round_*.csv"),
         key=lambda p: int(p.stem.removeprefix("round_")),
     )
 
@@ -140,16 +114,14 @@ def main():
                 previous_pairing[p2] = p1
             previous_pairings.append(previous_pairing)
 
-    cost, pairings = coffee_pairs(round, previous_pairings)
-    print(cost)
+    pairings = coffee_pairs(round, previous_pairings)
 
-    # print unique pairs
     try:
         N = int(round_paths[-1].stem.removeprefix("round_")) + 1
     except IndexError:
         N = 1
 
-    with Path("data").joinpath(f"round_{N:03d}.csv").open("w") as f:
+    with Path("test_data").joinpath(f"round_{N:03d}.csv").open("w") as f:
         for p1, p2 in set(map(frozenset, pairings.items())):
             print(p1.name, p2.name, sep=",", file=f)
 
