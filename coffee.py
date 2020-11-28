@@ -11,8 +11,8 @@ from functools import cache
 
 # NB: these must all be integers!
 COST_OF_NOT_PAIRING = 100  # Currently not used
-COST_OF_PARING_WITHIN_ORG = 250
-COST_OF_PARING_PREVIOUS_PARTNERS = 100
+COST_OF_PARING_WITHIN_ORG = 1
+COST_OF_PARING_PREVIOUS_PARTNERS = 10
 
 # TODO: class people as "organisers" or "coffee buyers" and prefer to alternate
 
@@ -41,42 +41,40 @@ def coffee_pairs(people: Round, previous_pairings: list[Pairing]) -> Pairing:
                 continue
 
             # TODO: this should take into account the last time this pair was *available*
+            # i.e. if someone goes in break, you don't want to pair them up with the same person,
+            # when they came back even if there was a large number of rounds between
 
             if len(previous_pairings) - n == 1:
-                cost += 100_000
-            elif len(previous_pairings) - n < 10:
+                cost += 1_000_000
+            elif len(previous_pairings) - n < 20:
                 cost += COST_OF_PARING_PREVIOUS_PARTNERS
-        print(p1, p2, cost)
         return cost
 
     N = len(people)
-
-    m = mip.Model()
     pairs = list(chain(*([(i, j) for j in range(i + 1, N)] for i in range(N - 1))))
 
-    p = [m.add_var(name=f"pair_{i}_{j}") for (i, j) in pairs]
+    def pairs_containing(k):
+        return chain(((i, k) for i in range(k)), ((k, i) for i in range(k + 1, N)))
 
-    # Constraint: a person can only be in one pair; dogleg sum
-    for j in range(N):
-        m.add_constr(
-            mip.xsum(
-                1 * m.var_by_name(f"pair_{i}_{j}")
-                for (i, j) in chain(
-                    ((i, j) for i in range(j)), ((j, i) for i in range(j + 1, N))
-                )
-            )
-            == 1,
-            f"person_{j}",
+    m = mip.Model()
+
+    p = {(i, j): m.add_var(name=f"pair_{i}_{j}", var_type=mip.BINARY) for i, j in pairs}
+
+    # Constraint: a person can only be in one pair, so sum of all pairs with person k must be 1
+    for k in range(N):
+        m += (
+            mip.xsum(p[i, j] for i, j in pairs_containing(k)) == 1,
+            f"person_{k}",
         )
 
     m.objective = mip.minimize(
-        mip.xsum(
-            weight_of_pair(people[i], people[j]) * m.var_by_name(f"pair_{i}_{j}")
-            for i, j in pairs
-        )
+        mip.xsum(weight_of_pair(people[i], people[j]) * p[i, j] for i, j in pairs)
     )
+    m.verbose = False
     status = m.optimize()
-    print("status:", status)
+    if status != mip.OptimizationStatus.OPTIMAL:
+        raise Exception("not optimal" + status)
+    print("Objective value =", m.objective_value)
 
     pairing = {}
     for (i, j) in pairs:
@@ -85,22 +83,6 @@ def coffee_pairs(people: Round, previous_pairings: list[Pairing]) -> Pairing:
         pairing[people[j]] = people[i]
         pairing[people[i]] = people[j]
 
-    # for j in range(N):
-    #     if (
-    #         sum(
-    #             m.var_by_name(f"pair_{i}_{j}").x
-    #             for (i, j) in chain(
-    #                 ((i, j) for i in range(j)), ((j, i) for i in range(j + 1, N))
-    #             )
-    #         )
-    #         != 1.0
-    #     ):
-    # for c in m.constrs:
-    #     print(dir(c))
-
-    for i in range(N):
-        if people[i] not in pairing:
-            print(f"{i} not in soln")
     return pairing
 
 
