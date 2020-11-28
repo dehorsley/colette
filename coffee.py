@@ -51,25 +51,23 @@ def coffee_pairs(people: Round, previous_pairings: list[Pairing]) -> Pairing:
         return cost
 
     N = len(people)
-    pairs = list(chain(*([(i, j) for j in range(i + 1, N)] for i in range(N - 1))))
+    pairs = [(i, j) for i in range(N - 1) for j in range(i + 1, N)]
 
     def pairs_containing(k):
         return chain(((i, k) for i in range(k)), ((k, i) for i in range(k + 1, N)))
 
     m = mip.Model()
 
-    p = {(i, j): m.add_var(name=f"pair_{i}_{j}", var_type=mip.BINARY) for i, j in pairs}
+    p = {(i, j): m.add_var(var_type=mip.BINARY) for i, j in pairs}
 
     # Constraint: a person can only be in one pair, so sum of all pairs with person k must be 1
     for k in range(N):
-        m += (
-            mip.xsum(p[i, j] for i, j in pairs_containing(k)) == 1,
-            f"person_{k}",
-        )
+        m += mip.xsum(p[i, j] for i, j in pairs_containing(k)) == 1
 
     m.objective = mip.minimize(
         mip.xsum(weight_of_pair(people[i], people[j]) * p[i, j] for i, j in pairs)
     )
+
     m.verbose = False
     status = m.optimize()
     if status != mip.OptimizationStatus.OPTIMAL:
@@ -78,7 +76,7 @@ def coffee_pairs(people: Round, previous_pairings: list[Pairing]) -> Pairing:
 
     pairing = {}
     for (i, j) in pairs:
-        if m.var_by_name(f"pair_{i}_{j}").x < 0.5:
+        if p[i, j].x < 0.5:
             continue
         pairing[people[j]] = people[i]
         pairing[people[i]] = people[j]
