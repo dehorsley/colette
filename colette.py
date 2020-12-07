@@ -52,7 +52,7 @@ class Pair:
 Round = dict[Person, Pair]
 
 
-def find_optimal_pairs_index(N, weights) -> (float, list[tuple[int, int]]):
+def find_optimal_pairs(N, weights) -> (float, list[tuple[int, int]]):
     """
     find_optimal_pairs finds an optimal set of pairs of integers between 0 and
     N-1 (incl) that minimize the sum of the weights specified for each pair.
@@ -85,7 +85,7 @@ def find_optimal_pairs_index(N, weights) -> (float, list[tuple[int, int]]):
 
 def new_round(
     players: list[Person],
-    previous_pairings: list[Round],
+    previous_rounds: list[Round],
     overrides: dict[frozenset[Person], int] = {},
 ) -> list[Pair]:
     """
@@ -95,11 +95,11 @@ def new_round(
 
     def last_pairing(p: Person) -> Pair:
         """
-        last_pairing finds the most recent pair person p participated in in the
-        list of previous_pairings, or None otherwise.
+        last_pairing finds the most recent pair person p participated in the
+        list of previous_rounds, or None otherwise.
         """
         return next(
-            (pairings[p] for pairings in reversed(previous_pairings) if p in pairings),
+            (pairs[p] for pairs in reversed(previous_rounds) if p in pairs),
             None,
         )
 
@@ -175,7 +175,7 @@ def new_round(
 
         ##
         # if partners were previously paired
-        for n, pairing in enumerate(previous_pairings):
+        for n, pairing in enumerate(previous_rounds):
             if p1 not in pairing:
                 continue
             if p2 not in pairing[p1]:
@@ -186,9 +186,9 @@ def new_round(
             # pair them up with the same person, when they came back even if
             # there was a large number of rounds between
 
-            if len(previous_pairings) - n == 1:
+            if len(previous_rounds) - n == 1:
                 cost += COST_OF_PARING_PREVIOUS_PARTNER_ONE_ROUND_AGO
-            elif len(previous_pairings) - n < COST_OF_PARING_PREVIOUS_PARTNER_N:
+            elif len(previous_rounds) - n < COST_OF_PARING_PREVIOUS_PARTNER_N:
                 cost += COST_OF_PARING_PREVIOUS_PARTNER_TWO_TO_N_ROUND_AGO
         return cost
 
@@ -231,8 +231,13 @@ def load_round(f: TextIO, people_by_name: dict[str, Person]) -> Round:
     return previous_round
 
 
-def load_overides(f: TextIO, people_by_name) -> dict[Person, float]:
-    pass
+def load_overrides(f: TextIO, people_by_name) -> dict[frozenset[Person], int]:
+    overrides = {}
+    for row in csv.reader(f):
+        p1 = people_by_name[row[0]]
+        p2 = people_by_name[row[1]]
+        overrides[frozenset({p1, p2})] = int(row[2])
+    return overrides
 
 
 def save_round(round: Round, f: TextIO):
@@ -249,7 +254,7 @@ def new_round_from_path(path="data") -> Round:
     path = Path(path)
 
     with (path / "people.csv").open() as f:
-        people_by_name = load_round(f)
+        people_by_name = load_people(f)
 
     # get the previous rounds files ordered by numbered suffix
     round_paths = sorted(
@@ -259,12 +264,18 @@ def new_round_from_path(path="data") -> Round:
 
     # read all the previous rounds into a list of Rounds
     previous_rounds = []
-    for path in round_paths:
-        with path.open() as f:
-            previous_rounds.append(load_previous_round(f, people_by_name))
+    for p in round_paths:
+        with p.open() as f:
+            previous_rounds.append(load_round(f, people_by_name))
+
+    overrides = {}
+    if (p := path / "overrides.csv").exists():
+        with p.open() as f:
+            print(f"loading overrides from {p}")
+            overrides = load_overrides(f, people_by_name)
 
     players = [p for p in people_by_name.values() if p.active]
-    round = new_round(players, previous_pairings)
+    round = new_round(players, previous_rounds, overrides=overrides)
 
     # round number to save
     N = 1
@@ -290,8 +301,8 @@ if __name__ == "__main__":
     )
     subparsers = parser.add_subparsers(title="commands")
 
-    def new_func(n, data):
-        print("new func called")
+    def new_func(data):
+        new_round_from_path(path=data)
 
     new_parser = subparsers.add_parser(
         "new",
@@ -312,7 +323,7 @@ if __name__ == "__main__":
     )
 
     def email_func():
-        print("email_func called")
+        print("email not yet implemented")
 
     email.set_defaults(func=email_func)
 
