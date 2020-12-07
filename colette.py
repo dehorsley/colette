@@ -2,13 +2,17 @@
 import csv
 import math
 import random
+import argparse
 
 import mip
 
+from inspect import signature
 from itertools import chain
 from pathlib import Path
 from dataclasses import dataclass
 from functools import cache
+from typing import TextIO
+
 
 # NB: these must all be integers!
 COST_OF_NOT_PAIRING = 100  # Currently not used
@@ -32,6 +36,8 @@ random.seed(1987)  # for reproducibility
 class Person:
     name: str
     organisation: str
+    active: bool
+    email: str
 
 
 @dataclass(frozen=True)
@@ -43,15 +49,15 @@ class Pair:
         return self.organiser == item or self.buyer == item
 
 
-Round = list[Person]
-Pairing = dict[Person, Pair]
-Cost = float
+Round = dict[Person, Pair]
 
 
-def find_optimal_pairs(N, weights) -> list[tuple[int, int]]:
+def find_optimal_pairs_index(N, weights) -> (float, list[tuple[int, int]]):
     """
     find_optimal_pairs finds an optimal set of pairs of integers between 0 and
     N-1 (incl) that minimize the sum of the weights specified for each pair.
+
+    Returns the objective value and list of pairs.
     """
 
     pairs = [(i, j) for i in range(N - 1) for j in range(i + 1, N)]
@@ -72,19 +78,26 @@ def find_optimal_pairs(N, weights) -> list[tuple[int, int]]:
     m.verbose = False
     status = m.optimize()
     if status != mip.OptimizationStatus.OPTIMAL:
-        raise Exception("not optimal" + status)
-    print("Objective value =", m.objective_value)
+        raise Exception("not optimal")
 
-    return [(i, j) for i, j in pairs if p[i, j].x > 0.5]
+    return m.objective_value, [(i, j) for i, j in pairs if p[i, j].x > 0.5]
 
 
-def find_pairs(players: list[Person], previous_pairings: list[Pairing]) -> list[Pair]:
+def new_round(
+    players: list[Person],
+    previous_pairings: list[Round],
+    overrides: dict[frozenset[Person], int] = {},
+) -> list[Pair]:
     """
     find_pairs finds the best (or a best) set of pairings based on the active players and
     the previous rounds.
     """
 
     def last_pairing(p: Person) -> Pair:
+        """
+        last_pairing finds the most recent pair person p participated in in the
+        list of previous_pairings, or None otherwise.
+        """
         return next(
             (pairings[p] for pairings in reversed(previous_pairings) if p in pairings),
             None,
@@ -121,7 +134,6 @@ def find_pairs(players: list[Person], previous_pairings: list[Pairing]) -> list[
         ):
             return Pair(organiser=p2, buyer=p1)
 
-        # Perhaps random
         if random.random() < 0.5:
             return Pair(organiser=p1, buyer=p2)
 
@@ -139,14 +151,16 @@ def find_pairs(players: list[Person], previous_pairings: list[Pairing]) -> list[
         cost = 0
 
         ##
-        # same org
+        # overrides
+        cost += overrides.get(frozenset({p1, p2}), 0)
 
+        ##
+        # same org
         if p1.organisation == p2.organisation:
             cost += COST_OF_PARING_WITHIN_ORG
 
         ##
         # if partners were of the same type in their last round
-
         p1_last_pair = last_pairing(p1)
         p2_last_pair = last_pairing(p2)
 
@@ -179,60 +193,134 @@ def find_pairs(players: list[Person], previous_pairings: list[Pairing]) -> list[
         return cost
 
     pairs = []
-    optimal_pair_indexs = find_optimal_pairs(len(players), weights)
-    for i, j in optimal_pair_indexs:
+    cost, optimal_pair_indices = find_optimal_pairs(len(players), weights)
+    for i, j in optimal_pair_indices:
         pair = assign_roles(players[i], players[j])
         pairs.append(pair)
 
     return pairs
 
 
-def main():
-    players: Round = []
+def load_people(f: TextIO) -> dict[str, Person]:
+    """
+    load_people reads a set of people from comma separated list in file like
+    object f, and return a dictionary keyed by name.
+    """
     people_by_name: dict[str, Person] = {}
+    for row in csv.DictReader(f):
+        # Convert string to bool
+        row["active"] = row["active"].casefold() == "true"
+        p = Person(**row)
+        people_by_name[p.name] = p
+    return people_by_name
 
-    with open("test_data/people.csv") as f:
-        for row in csv.DictReader(f):
-            active = row["active"].casefold() == "true"
-            del row["active"]
-            p = Person(**row)
 
-            people_by_name[p.name] = p
-            if active:
-                players.append(p)
+def load_round(f: TextIO, people_by_name: dict[str, Person]) -> Round:
+    """
+    load_round reads a set of comma separated pairs from file-like object f and
+    returns a dictionary of pairs.
+    """
+    previous_round: Round = {}
+    for row in csv.DictReader(f):
+        # TODO: a more useful error might be nice here if lookup fails
+        p1 = people_by_name[row["organiser"]]
+        p2 = people_by_name[row["buyer"]]
+        pair = Pair(organiser=p1, buyer=p2)
+        previous_round[p1] = pair
+        previous_round[p2] = pair
+    return previous_round
+
+
+def load_overides(f: TextIO, people_by_name) -> dict[Person, float]:
+    pass
+
+
+def save_round(round: Round, f: TextIO):
+    """
+    save_round writes a set of comma separated lines of "organiser,buyer" pairs to
+    the file like object f.
+    """
+    print("organiser", "buyer", sep=",", file=f)
+    for pair in round:
+        print(pair.organiser.name, pair.buyer.name, sep=",", file=f)
+
+
+def new_round_from_path(path="data") -> Round:
+    path = Path(path)
+
+    with (path / "people.csv").open() as f:
+        people_by_name = load_round(f)
 
     # get the previous rounds files ordered by numbered suffix
     round_paths = sorted(
-        Path("test_data").glob("round_*.csv"),
+        path.glob("round_*.csv"),
         key=lambda p: int(p.stem.removeprefix("round_")),
     )
 
-    # read all the previous rounds into a list of Pairings
-    previous_pairings: list[Pairing] = []
+    # read all the previous rounds into a list of Rounds
+    previous_rounds = []
     for path in round_paths:
-        previous_pairing: Pairing = {}
         with path.open() as f:
-            for row in csv.DictReader(f):
-                # TODO: a more useful error might be nice here if lookup fails
-                p1 = people_by_name[row["organiser"]]
-                p2 = people_by_name[row["buyer"]]
-                pair = Pair(p1, p2)
-                previous_pairing[p1] = pair
-                previous_pairing[p2] = pair
-            previous_pairings.append(previous_pairing)
+            previous_rounds.append(load_previous_round(f, people_by_name))
 
-    pairs = find_pairs(players, previous_pairings)
+    players = [p for p in people_by_name.values() if p.active]
+    round = new_round(players, previous_pairings)
 
     # round number to save
     N = 1
     if len(round_paths) > 0:
         N = int(round_paths[-1].stem.removeprefix("round_")) + 1
 
-    with Path("test_data").joinpath(f"round_{N:03d}.csv").open("w") as f:
-        print("organiser", "buyer", sep=",", file=f)
-        for pair in pairs:
-            print(pair.organiser.name, pair.buyer.name, sep=",", file=f)
+    with (path / f"round_{N:03d}.csv").open("w") as f:
+        save_round(round, f)
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(
+        "colette",
+        description="""\
+            Manage a series of coffee roulette sessions!
+        """,
+    )
+    parser.add_argument(
+        "--data",
+        "-d",
+        help="directory containing people and round data",
+        default="data",
+    )
+    subparsers = parser.add_subparsers(title="commands")
+
+    def new_func(n, data):
+        print("new func called")
+
+    new_parser = subparsers.add_parser(
+        "new",
+        description="""
+            create a new round. The list of pairings is saved in round_N.csv in
+            the data directory, where N is the current round, inferred from the
+            CSV files in the data directory.
+    """,
+    )
+    new_parser.add_argument("-n", help="round number", type=int)
+    new_parser.set_defaults(func=new_func)
+
+    email = subparsers.add_parser(
+        "email",
+        description="""
+        email the participants of the last round — or the round specified — their partner and role.
+        """,
+    )
+
+    def email_func():
+        print("email_func called")
+
+    email.set_defaults(func=email_func)
+
+    args = parser.parse_args()
+    if "func" not in vars(args):
+        parser.print_help()
+        sys.exit(1)
+
+    args.func(
+        **{k: v for k, v in vars(args).items() if k in signature(args.func).parameters}
+    )
