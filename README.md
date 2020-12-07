@@ -20,8 +20,8 @@ paired. Players are assigned a role in each round, either "organiser" or
 "(coffee) buyer". The method attempts to choose pairs that allow people to swap
 roles each round.
 
-If you with to mark certain pairs as desired or undesired, create an
-"overrides.csv", listing each pair you with to specify the name of the two
+If you want to mark certain pairs as desired or undesired, create an
+"overrides.csv" file in the data directory, listing on each row the name of the two
 players and an integer "cost" of adding this pair to the round. This will be
 added to the cost of pairing if the players have previously been pair or are in
-the same organisation.
+the same organisation. To prefer a pair, add a negative cost.
