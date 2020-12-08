@@ -16,7 +16,7 @@ from typing import TextIO
 
 
 # NB: these must all be integers!
-COST_OF_NOT_PAIRING = 100  # Currently not used
+COST_OF_NOT_PAIRING = 100
 COST_OF_PARING_WITHIN_ORG = 5
 
 COST_OF_PARING_SAME_TYPE = 2  # as in role in pair: orgraniser or coffee buyer
@@ -61,10 +61,11 @@ def find_optimal_pairs(N, weights) -> (float, list[tuple[int, int]]):
     Returns the objective value and list of pairs.
     """
 
-    pairs = [(i, j) for i in range(N - 1) for j in range(i + 1, N)]
+    pairs = [(i, j) for i in range(N) for j in range(i, N)]
+    # note: people are excluded from the round by pairing with themselves
 
     def pairs_containing(k):
-        return chain(((i, k) for i in range(k)), ((k, i) for i in range(k + 1, N)))
+        return chain(((i, k) for i in range(k)), ((k, i) for i in range(k, N)))
 
     m = mip.Model()
 
@@ -116,6 +117,8 @@ def new_round(
           neither have previously played, then they will be randomly assigned
           roles with equal probability.
         """
+        if p1 == p2:
+            return Pair(p1, p2)
 
         p1_last_pair = last_pairing(p1)
         p2_last_pair = last_pairing(p2)
@@ -156,6 +159,31 @@ def new_round(
         cost += overrides.get(frozenset({p1, p2}), 0)
 
         ##
+        # if partners were previously paired
+        for n, pairing in enumerate(previous_rounds):
+            if p1 not in pairing:
+                continue
+            if p2 not in pairing[p1]:
+                continue
+
+            if p1 == p2 and pairing[p1].organiser != pairing[p1].buyer:
+                continue
+
+            # TODO: maybe this should take into account the last time this pair
+            # was *available* i.e. if someone goes in break, you don't want to
+            # pair them up with the same person, when they came back even if
+            # there was a large number of rounds between
+
+            if len(previous_rounds) - n == 1:
+                cost += COST_OF_PARING_PREVIOUS_PARTNER_ONE_ROUND_AGO
+            elif len(previous_rounds) - n < COST_OF_PARING_PREVIOUS_PARTNER_N:
+                cost += COST_OF_PARING_PREVIOUS_PARTNER_TWO_TO_N_ROUND_AGO
+
+        if p1 == p2:
+            cost += COST_OF_NOT_PAIRING
+            return cost
+
+        ##
         # same org
         if p1.organisation == p2.organisation:
             cost += COST_OF_PARING_WITHIN_ORG
@@ -174,23 +202,6 @@ def new_round(
             ):
                 cost += COST_OF_PARING_SAME_TYPE
 
-        ##
-        # if partners were previously paired
-        for n, pairing in enumerate(previous_rounds):
-            if p1 not in pairing:
-                continue
-            if p2 not in pairing[p1]:
-                continue
-
-            # TODO: maybe this should take into account the last time this pair
-            # was *available* i.e. if someone goes in break, you don't want to
-            # pair them up with the same person, when they came back even if
-            # there was a large number of rounds between
-
-            if len(previous_rounds) - n == 1:
-                cost += COST_OF_PARING_PREVIOUS_PARTNER_ONE_ROUND_AGO
-            elif len(previous_rounds) - n < COST_OF_PARING_PREVIOUS_PARTNER_N:
-                cost += COST_OF_PARING_PREVIOUS_PARTNER_TWO_TO_N_ROUND_AGO
         return cost
 
     pairs = []
@@ -277,8 +288,6 @@ def new_round_from_path(path="data") -> Round:
     players = [p for p in people_by_name.values() if p.active]
     if len(players) == 0:
         raise Exception("no players!")
-    if len(players) % 2 != 0:
-        raise Exception("uneven number of players!")
     round = new_round(players, previous_rounds, overrides=overrides)
 
     # round number to save
