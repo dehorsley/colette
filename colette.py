@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 import csv
 import math
 import random
@@ -208,8 +209,8 @@ def load_people(f: TextIO) -> dict[str, Person]:
     """
     people_by_name: dict[str, Person] = {}
     for row in csv.DictReader(f):
-        # Convert string to bool
-        row["active"] = row["active"].casefold() == "true"
+        row = {k: v.strip() for k, v in row.items()}
+        row["active"] = row["active"].casefold() in {"true", "1"}
         p = Person(**row)
         people_by_name[p.name] = p
     return people_by_name
@@ -234,9 +235,9 @@ def load_round(f: TextIO, people_by_name: dict[str, Person]) -> Round:
 def load_overrides(f: TextIO, people_by_name) -> dict[frozenset[Person], int]:
     overrides = {}
     for row in csv.reader(f):
-        p1 = people_by_name[row[0]]
-        p2 = people_by_name[row[1]]
-        overrides[frozenset({p1, p2})] = int(row[2])
+        p1 = people_by_name[row[0].strip()]
+        p2 = people_by_name[row[1].strip()]
+        overrides[frozenset({p1, p2})] = int(row[2].strip())
     return overrides
 
 
@@ -271,7 +272,6 @@ def new_round_from_path(path="data") -> Round:
     overrides = {}
     if (p := path / "overrides.csv").exists():
         with p.open() as f:
-            print(f"loading overrides from {p}")
             overrides = load_overrides(f, people_by_name)
 
     players = [p for p in people_by_name.values() if p.active]
