@@ -147,16 +147,24 @@ def new_round(
     # player i and j together. Takes into account if players are in the same organisation,
     # were previously assigned the same role, and were previously paired together.
     weights = {}
+
+    # whys contains the list of explinations for the "costs" in weights. This
+    # allows for reporting of unprefered matches in the optimal solution.
+    whys = {}
+
     N = len(players)
     for i in range(N):
         for j in range(i, N):
             p1 = players[i]
             p2 = players[j]
             cost = 0
+            whys[i, j] = []
 
             ##
             # overrides
-            cost += overrides.get(frozenset({p1, p2}), 0)
+            if (s := frozenset({p1, p2})) in overrides:
+                cost += overrides[s]
+                whys[i, j].append(f"override values {overrides[s]}")
 
             ##
             # if partners were previously paired
@@ -176,11 +184,16 @@ def new_round(
 
                 if len(previous_rounds) - n == 1:
                     cost += COST_OF_PARING_PREVIOUS_PARTNER_ONE_ROUND_AGO
+                    whys[i, j].append(f"were paired last round")
                 elif len(previous_rounds) - n < COST_OF_PARING_PREVIOUS_PARTNER_N:
                     cost += COST_OF_PARING_PREVIOUS_PARTNER_TWO_TO_N_ROUND_AGO
+                    whys[i, j].append(
+                        f"were paired last round less than {COST_OF_PARING_PREVIOUS_PARTNER_N} rounds ago"
+                    )
 
             if i == j:
                 cost += COST_OF_NOT_PAIRING
+                whys[i, j].append("removed from round")
                 weights[i, j] = cost
                 continue
 
@@ -188,6 +201,7 @@ def new_round(
             # same org
             if p1.organisation == p2.organisation:
                 cost += COST_OF_PARING_WITHIN_ORG
+                whys[i, j].append("are in the same organisation")
 
             ##
             # if partners were of the same type in their last round
@@ -202,12 +216,22 @@ def new_round(
                     and p2 == p2_last_pair.buyer
                 ):
                     cost += COST_OF_PARING_SAME_TYPE
+                    whys[i, j].append("were the same role last round")
 
             weights[i, j] = cost
 
     pairs = []
     cost, optimal_pair_indices = find_optimal_pairs(len(players), weights)
     for i, j in optimal_pair_indices:
+        if weights[i, j] > 0:
+            # TODO: something better than this, option to turn off or something
+            if i == j:
+                print(players[i].name, ",".join(whys[i, j]))
+                continue
+            print(
+                f"{players[i].name} paired with {players[j].name} but players",
+                " and ".join(whys[i, j]),
+            )
         pair = assign_roles(players[i], players[j])
         pairs.append(pair)
 
