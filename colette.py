@@ -227,11 +227,11 @@ def new_round(
             # TODO: something better than this, option to turn off or something
             if i == j:
                 print(players[i].name, ",".join(whys[i, j]))
-                continue
-            print(
-                f"{players[i].name} paired with {players[j].name} but players",
-                " and ".join(whys[i, j]),
-            )
+            else:
+                print(
+                    f"{players[i].name} paired with {players[j].name} but players",
+                    " and ".join(whys[i, j]),
+                )
         pair = assign_roles(players[i], players[j])
         pairs.append(pair)
 
