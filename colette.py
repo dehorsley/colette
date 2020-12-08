@@ -275,6 +275,10 @@ def new_round_from_path(path="data") -> Round:
             overrides = load_overrides(f, people_by_name)
 
     players = [p for p in people_by_name.values() if p.active]
+    if len(players) == 0:
+        raise Exception("no players!")
+    if len(players) % 2 != 0:
+        raise Exception("uneven number of players!")
     round = new_round(players, previous_rounds, overrides=overrides)
 
     # round number to save
