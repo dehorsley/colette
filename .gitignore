@@ -5,3 +5,7 @@ __pycache__/
 
 venv/
 test_data/round*.csv
+data/
+
+
+.DS_Store
