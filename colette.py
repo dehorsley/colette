@@ -75,7 +75,7 @@ def find_optimal_pairs(N, weights) -> (float, list[tuple[int, int]]):
     for k in range(N):
         m += mip.xsum(p[i, j] for i, j in pairs_containing(k)) == 1
 
-    m.objective = mip.minimize(mip.xsum(weights(i, j) * p[i, j] for i, j in pairs))
+    m.objective = mip.minimize(mip.xsum(weights[i, j] * p[i, j] for i, j in pairs))
 
     m.verbose = False
     status = m.optimize()
@@ -143,66 +143,67 @@ def new_round(
 
         return Pair(organiser=p2, buyer=p1)
 
-    def weights(i, j):
-        """
-        weights calculates the "cost" to the final solution of pairing
-        player i and j together. Takes into account if players are in the same organisation,
-        were previously assigned the same role, and were previously paired together.
-        """
+    # weights contains the "cost" to the final solution of pairing
+    # player i and j together. Takes into account if players are in the same organisation,
+    # were previously assigned the same role, and were previously paired together.
+    weights = {}
+    N = len(players)
+    for i in range(N):
+        for j in range(i, N):
+            p1 = players[i]
+            p2 = players[j]
+            cost = 0
 
-        p1 = players[i]
-        p2 = players[j]
-        cost = 0
+            ##
+            # overrides
+            cost += overrides.get(frozenset({p1, p2}), 0)
 
-        ##
-        # overrides
-        cost += overrides.get(frozenset({p1, p2}), 0)
+            ##
+            # if partners were previously paired
+            for n, pairing in enumerate(previous_rounds):
+                if p1 not in pairing:
+                    continue
+                if p2 not in pairing[p1]:
+                    continue
 
-        ##
-        # if partners were previously paired
-        for n, pairing in enumerate(previous_rounds):
-            if p1 not in pairing:
+                if p1 == p2 and pairing[p1].organiser != pairing[p1].buyer:
+                    continue
+
+                # TODO: maybe this should take into account the last time this pair
+                # was *available* i.e. if someone goes in break, you don't want to
+                # pair them up with the same person, when they came back even if
+                # there was a large number of rounds between
+
+                if len(previous_rounds) - n == 1:
+                    cost += COST_OF_PARING_PREVIOUS_PARTNER_ONE_ROUND_AGO
+                elif len(previous_rounds) - n < COST_OF_PARING_PREVIOUS_PARTNER_N:
+                    cost += COST_OF_PARING_PREVIOUS_PARTNER_TWO_TO_N_ROUND_AGO
+
+            if i == j:
+                cost += COST_OF_NOT_PAIRING
+                weights[i, j] = cost
                 continue
-            if p2 not in pairing[p1]:
-                continue
 
-            if p1 == p2 and pairing[p1].organiser != pairing[p1].buyer:
-                continue
+            ##
+            # same org
+            if p1.organisation == p2.organisation:
+                cost += COST_OF_PARING_WITHIN_ORG
 
-            # TODO: maybe this should take into account the last time this pair
-            # was *available* i.e. if someone goes in break, you don't want to
-            # pair them up with the same person, when they came back even if
-            # there was a large number of rounds between
+            ##
+            # if partners were of the same type in their last round
+            p1_last_pair = last_pairing(p1)
+            p2_last_pair = last_pairing(p2)
 
-            if len(previous_rounds) - n == 1:
-                cost += COST_OF_PARING_PREVIOUS_PARTNER_ONE_ROUND_AGO
-            elif len(previous_rounds) - n < COST_OF_PARING_PREVIOUS_PARTNER_N:
-                cost += COST_OF_PARING_PREVIOUS_PARTNER_TWO_TO_N_ROUND_AGO
+            if p1_last_pair is not None and p2_last_pair is not None:
+                if (
+                    p1 == p1_last_pair.organiser
+                    and p2 == p2_last_pair.organiser
+                    or p1 == p1_last_pair.buyer
+                    and p2 == p2_last_pair.buyer
+                ):
+                    cost += COST_OF_PARING_SAME_TYPE
 
-        if p1 == p2:
-            cost += COST_OF_NOT_PAIRING
-            return cost
-
-        ##
-        # same org
-        if p1.organisation == p2.organisation:
-            cost += COST_OF_PARING_WITHIN_ORG
-
-        ##
-        # if partners were of the same type in their last round
-        p1_last_pair = last_pairing(p1)
-        p2_last_pair = last_pairing(p2)
-
-        if p1_last_pair is not None and p2_last_pair is not None:
-            if (
-                p1 == p1_last_pair.organiser
-                and p2 == p2_last_pair.organiser
-                or p1 == p1_last_pair.buyer
-                and p2 == p2_last_pair.buyer
-            ):
-                cost += COST_OF_PARING_SAME_TYPE
-
-        return cost
+            weights[i, j] = cost
 
     pairs = []
     cost, optimal_pair_indices = find_optimal_pairs(len(players), weights)
