@@ -5,8 +5,6 @@ import math
 import random
 import argparse
 
-import mip
-
 from inspect import signature
 from itertools import chain
 from pathlib import Path
@@ -14,6 +12,9 @@ from dataclasses import dataclass
 from functools import cache
 from typing import TextIO
 
+import mip
+
+from jinja2 import Template, Environment
 
 # NB: these must all be integers!
 COST_OF_NOT_PAIRING = 50
@@ -327,6 +328,45 @@ def new_round_from_path(path="data") -> Round:
         save_round(round, f)
 
 
+def email(path="data", round=None):
+    path = Path(path)
+
+    with (path / "buyer.template").open() as f:
+        buyer_template = Template(f.read())
+
+    with (path / "organiser.template").open() as f:
+        organiser_template = Template(f.read())
+
+    with (path / "excluded.template").open() as f:
+        excluded_template = Template(f.read())
+
+    if round is None:
+        round_paths = sorted(
+            path.glob("round_*.csv"),
+            key=lambda p: int(p.stem.removeprefix("round_")),
+        )
+
+        if len(round_paths) == 0:
+            raise Exception(f"No round_*.csv file round in path {path}")
+
+        round = int(round_paths[-1].stem.removeprefix("round_"))
+
+    print(f"Emailing playesr of round {round}!")
+
+    with (path / "people.csv").open() as f:
+        people_by_name = load_people(f)
+
+    with (path / f"round_{round:03d}.csv").open() as f:
+        pairs = load_round(f, people_by_name)
+
+    for p in set(pairs.values()):
+        if p.buyer == p.organiser:
+            print(excluded_template.render(you=p.organiser))
+            continue
+        print(buyer_template.render(organiser=p.organiser, buyer=p.buyer))
+        print(organiser_template.render(organiser=p.organiser, buyer=p.buyer))
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         "colette",
@@ -335,15 +375,12 @@ if __name__ == "__main__":
         """,
     )
     parser.add_argument(
-        "--data",
-        "-d",
-        help="directory containing people and round data",
+        "--path",
+        "-p",
+        help="path to directory containing people and round data",
         default="data",
     )
     subparsers = parser.add_subparsers(title="commands")
-
-    def new_func(data):
-        new_round_from_path(path=data)
 
     new_parser = subparsers.add_parser(
         "new",
@@ -353,20 +390,22 @@ if __name__ == "__main__":
             CSV files in the data directory.
     """,
     )
-    new_parser.add_argument("-n", help="round number", type=int)
-    new_parser.set_defaults(func=new_func)
+    new_parser.set_defaults(func=new_round_from_path)
 
-    email = subparsers.add_parser(
+    email_parser = subparsers.add_parser(
         "email",
         description="""
         email the participants of the last round — or the round specified — their partner and role.
         """,
     )
+    email_parser.add_argument(
+        "--round",
+        "-n",
+        help="the number of the round to send the email notification to.",
+        type=int,
+    )
 
-    def email_func():
-        print("email not yet implemented")
-
-    email.set_defaults(func=email_func)
+    email_parser.set_defaults(func=email)
 
     args = parser.parse_args()
     if "func" not in vars(args):
