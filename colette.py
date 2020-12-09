@@ -167,13 +167,16 @@ def new_round(
 
             ##
             # if partners were previously paired
-            for n, pairing in enumerate(previous_rounds):
+            for n, pairing in enumerate(reversed(previous_rounds)):
+                if n >= COST_OF_PARING_PREVIOUS_PARTNER_N:
+                    break
+
                 if p1 not in pairing:
                     continue
                 if p2 not in pairing[p1]:
                     continue
 
-                if p1 == p2 and pairing[p1].organiser != pairing[p1].buyer:
+                if i == j and pairing[p1].organiser != pairing[p1].buyer:
                     continue
 
                 # TODO: maybe this should take into account the last time this pair
@@ -181,13 +184,13 @@ def new_round(
                 # pair them up with the same person, when they came back even if
                 # there was a large number of rounds between
 
-                if len(previous_rounds) - n == 1:
+                if n == 0:
                     cost += COST_OF_PARING_PREVIOUS_PARTNER_ONE_ROUND_AGO
                     whys[i, j].append(f"were paired last round")
-                elif len(previous_rounds) - n < COST_OF_PARING_PREVIOUS_PARTNER_N:
+                elif n < COST_OF_PARING_PREVIOUS_PARTNER_N:
                     cost += COST_OF_PARING_PREVIOUS_PARTNER_TWO_TO_N_ROUND_AGO
                     whys[i, j].append(
-                        f"were paired last round less than {COST_OF_PARING_PREVIOUS_PARTNER_N} rounds ago"
+                        f"were paired last round less than {n+1} rounds ago"
                     )
 
             if i == j:
