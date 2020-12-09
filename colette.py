@@ -16,16 +16,15 @@ from typing import TextIO
 
 
 # NB: these must all be integers!
-COST_OF_NOT_PAIRING = 100
-COST_OF_PARING_WITHIN_ORG = 5
+COST_OF_NOT_PAIRING = 50
+COST_OF_PARING_WITHIN_ORG = 10
 
-COST_OF_PARING_SAME_TYPE = 2  # as in role in pair: orgraniser or coffee buyer
+COST_OF_PARING_SAME_TYPE = 1  # as in role in pair: orgraniser or coffee buyer
 
-# Should be a big number. Really don't want to pair people together *just* after they paired. If we introduce
-# not pairing some players, that might be preferred
+# Should be a big number. Really don't want to pair people together *just* after they paired
 COST_OF_PARING_PREVIOUS_PARTNER_ONE_ROUND_AGO = 1_000_000
 # Cost of pairing players that were previously paired between 2 to N rounds ago
-COST_OF_PARING_PREVIOUS_PARTNER_TWO_TO_N_ROUND_AGO = 100
+COST_OF_PARING_PREVIOUS_PARTNER_TWO_TO_N_ROUND_AGO = 50
 # Number of round before a previous pairing doesn't matter anymore
 COST_OF_PARING_PREVIOUS_PARTNER_N = 10
 
