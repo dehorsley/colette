@@ -301,6 +301,12 @@ def new_round_from_path(path="data") -> Round:
         key=lambda p: int(p.stem.removeprefix("round_")),
     )
 
+    # round number to save
+    N = 1
+    if len(round_paths) > 0:
+        N = int(round_paths[-1].stem.removeprefix("round_")) + 1
+    print(f"Generating Round {N}!")
+
     # read all the previous rounds into a list of Rounds
     previous_rounds = []
     for p in round_paths:
@@ -316,11 +322,6 @@ def new_round_from_path(path="data") -> Round:
     if len(players) == 0:
         raise Exception("no players!")
     round = new_round(players, previous_rounds, overrides=overrides)
-
-    # round number to save
-    N = 1
-    if len(round_paths) > 0:
-        N = int(round_paths[-1].stem.removeprefix("round_")) + 1
 
     with (path / f"round_{N:03d}.csv").open("w") as f:
         save_round(round, f)
