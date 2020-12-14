@@ -272,6 +272,12 @@ def load_round(f: TextIO, people_by_name: dict[str, Person]) -> Round:
 
 
 def load_overrides(f: TextIO, people_by_name) -> dict[frozenset[Person], int]:
+    """
+    load_overrides loads a list of overrides from a csv file. Overrides are
+    specified as two names and the weight/cost associated with adding that pair
+    to the round. Note a negative weight is valid and can be used to
+    incentivise the pair to be added to the round.
+    """
     overrides = {}
     for row in csv.reader(f):
         p1 = people_by_name[row[0].strip()]
@@ -329,6 +335,11 @@ def new_round_from_path(path="data") -> Round:
 
 
 def email(path="data", round=None):
+    """
+    email function emails the participants of a round their role and
+    counterpart, or gives them appology if unpaired. The round emailed is
+    either the number specified in "round" or the latest in the path.
+    """
     path = Path(path)
 
     with (path / "buyer.template").open() as f:
@@ -359,6 +370,8 @@ def email(path="data", round=None):
     with (path / f"round_{round:03d}.csv").open() as f:
         pairs = load_round(f, people_by_name)
 
+    # iterate over all unique pairs: NB each pair can be in the pairs dict at
+    # most once, one time for each member.
     for p in set(pairs.values()):
         if p.buyer == p.organiser:
             print(excluded_template.render(you=p.organiser))
