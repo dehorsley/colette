@@ -4,7 +4,9 @@ import csv
 import math
 import random
 import argparse
+import smtplib
 
+from email.message import EmailMessage
 from inspect import signature
 from itertools import chain
 from pathlib import Path
@@ -362,7 +364,7 @@ def email(path="data", round=None):
 
         round = int(round_paths[-1].stem.removeprefix("round_"))
 
-    print(f"Emailing playesr of round {round}!")
+    print(f"Emailing players of round {round}!")
 
     with (path / "people.csv").open() as f:
         people_by_name = load_people(f)
@@ -370,14 +372,26 @@ def email(path="data", round=None):
     with (path / f"round_{round:03d}.csv").open() as f:
         pairs = load_round(f, people_by_name)
 
+    def email_template(address, pair, template):
+        msg = EmailMessage()
+        msg.set_content(template.render(organiser=p.organiser, buyer=p.buyer))
+
+        msg["Subject"] = "coffee time!"  # TODO: customize this
+        msg["From"] = "colette@example.com"  # TODO: load from config
+        msg["To"] = address
+
+        # TODO: handoff to smtp server or the like
+        # TODO: load SMTP (or the like) server from config
+        print(msg)
+
     # iterate over all unique pairs: NB each pair can be in the pairs dict at
     # most once, one time for each member.
     for p in set(pairs.values()):
         if p.buyer == p.organiser:
-            print(excluded_template.render(you=p.organiser))
+            email_template(p.buyer.email, p, excluded_template)
             continue
-        print(buyer_template.render(organiser=p.organiser, buyer=p.buyer))
-        print(organiser_template.render(organiser=p.organiser, buyer=p.buyer))
+        email_template(p.buyer.email, p, buyer_template)
+        email_template(p.organiser.email, p, organiser_template)
 
 
 if __name__ == "__main__":
