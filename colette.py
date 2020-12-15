@@ -6,6 +6,7 @@ import random
 import argparse
 import smtplib
 
+from configparser import ConfigParser
 from email.message import EmailMessage
 from inspect import signature
 from itertools import chain
@@ -359,6 +360,9 @@ def email(path="data", round=None):
     with (path / "excluded.template").open() as f:
         excluded_template = Template(f.read())
 
+    cfg = ConfigParser()
+    cfg.read(path / "email.ini")
+
     if round is None:
         round_paths = sorted(
             path.glob("round_*.csv"),
@@ -382,8 +386,8 @@ def email(path="data", round=None):
         msg = EmailMessage()
         msg.set_content(template.render(organiser=p.organiser, buyer=p.buyer))
 
-        msg["Subject"] = "coffee time!"  # TODO: customize this
-        msg["From"] = "colette@example.com"  # TODO: load from config
+        msg["Subject"] = cfg["email"]["subject"]
+        msg["From"] = cfg["email"]["from"]
         msg["To"] = address
         return msg
 
@@ -397,7 +401,17 @@ def email(path="data", round=None):
         msgs.append(msg_from_template(p.buyer.email, p, buyer_template))
         msgs.append(msg_from_template(p.organiser.email, p, organiser_template))
 
-    s = smtplib.SMTP("localhost:1025")
+    s = smtplib.SMTP(cfg["email"]["server"])
+
+    if cfg["email"].getboolean("ssl", fallback=False):
+        import ssl
+
+        ctx = ssl.create_default_context()
+        s.starttls(context=ctx)
+
+    if "username" in cfg["email"]:
+        s.login(cfg["email"]["username"], cfg["email"]["password"])
+
     for msg in msgs:
         s.send_message(msg)
     s.quit()
