@@ -189,11 +189,17 @@ def new_round(
 
                 if n == 0:
                     cost += COST_OF_PAIRING_PREVIOUS_PARTNER_ONE_ROUND_AGO
-                    whys[i, j].append(f"were paired last round")
+                    whys[i, j].append(
+                        f"were paired last round"
+                        if i != j
+                        else "was removed last round"
+                    )
                 elif n < COST_OF_PAIRING_PREVIOUS_PARTNER_N:
                     cost += COST_OF_PAIRING_PREVIOUS_PARTNER_TWO_TO_N_ROUND_AGO
                     whys[i, j].append(
-                        f"were paired last round less than {n+1} rounds ago"
+                        f"were paired less than {n+1} rounds ago"
+                        if i != j
+                        else f"was removed last less than {n+1} rounds ago"
                     )
 
             if i == j:
@@ -231,7 +237,7 @@ def new_round(
         if weights[i, j] > 0:
             # TODO: something better than this, option to turn off or something
             if i == j:
-                print(players[i].name, ",".join(whys[i, j]))
+                print(players[i].name, ", ".join(whys[i, j]))
             else:
                 print(
                     f"{players[i].name} paired with {players[j].name} but players",
