@@ -20,16 +20,16 @@ from jinja2 import Template, Environment
 
 # NB: these must all be integers!
 COST_OF_NOT_PAIRING = 50
-COST_OF_PARING_WITHIN_ORG = 10
+COST_OF_PAIRING_WITHIN_ORG = 10
 
-COST_OF_PARING_SAME_TYPE = 1  # as in role in pair: orgraniser or coffee buyer
+COST_OF_PAIRING_SAME_TYPE = 1  # as in role in pair: orgraniser or coffee buyer
 
 # Should be a big number. Really don't want to pair people together *just* after they paired
-COST_OF_PARING_PREVIOUS_PARTNER_ONE_ROUND_AGO = 1_000_000
+COST_OF_PAIRING_PREVIOUS_PARTNER_ONE_ROUND_AGO = 1_000_000
 # Cost of pairing players that were previously paired between 2 to N rounds ago
-COST_OF_PARING_PREVIOUS_PARTNER_TWO_TO_N_ROUND_AGO = 50
+COST_OF_PAIRING_PREVIOUS_PARTNER_TWO_TO_N_ROUND_AGO = 50
 # Number of round before a previous pairing doesn't matter anymore
-COST_OF_PARING_PREVIOUS_PARTNER_N = 10
+COST_OF_PAIRING_PREVIOUS_PARTNER_N = 10
 
 
 random.seed(1987)  # for reproducibility
@@ -150,8 +150,8 @@ def new_round(
     # were previously assigned the same role, and were previously paired together.
     weights = {}
 
-    # whys contains the list of explinations for the "costs" in weights. This
-    # allows for reporting of unprefered matches in the optimal solution.
+    # whys contains the list of explanations for the "costs" in weights. This
+    # allows for reporting of non-preferred matches in the optimal solution.
     whys = {}
 
     N = len(players)
@@ -171,7 +171,7 @@ def new_round(
             ##
             # if partners were previously paired
             for n, pairing in enumerate(reversed(previous_rounds)):
-                if n >= COST_OF_PARING_PREVIOUS_PARTNER_N:
+                if n >= COST_OF_PAIRING_PREVIOUS_PARTNER_N:
                     break
 
                 if p1 not in pairing:
@@ -188,10 +188,10 @@ def new_round(
                 # there was a large number of rounds between
 
                 if n == 0:
-                    cost += COST_OF_PARING_PREVIOUS_PARTNER_ONE_ROUND_AGO
+                    cost += COST_OF_PAIRING_PREVIOUS_PARTNER_ONE_ROUND_AGO
                     whys[i, j].append(f"were paired last round")
-                elif n < COST_OF_PARING_PREVIOUS_PARTNER_N:
-                    cost += COST_OF_PARING_PREVIOUS_PARTNER_TWO_TO_N_ROUND_AGO
+                elif n < COST_OF_PAIRING_PREVIOUS_PARTNER_N:
+                    cost += COST_OF_PAIRING_PREVIOUS_PARTNER_TWO_TO_N_ROUND_AGO
                     whys[i, j].append(
                         f"were paired last round less than {n+1} rounds ago"
                     )
@@ -205,7 +205,7 @@ def new_round(
             ##
             # same org
             if p1.organisation == p2.organisation:
-                cost += COST_OF_PARING_WITHIN_ORG
+                cost += COST_OF_PAIRING_WITHIN_ORG
                 whys[i, j].append("are in the same organisation")
 
             ##
@@ -220,7 +220,7 @@ def new_round(
                     or p1 == p1_last_pair.buyer
                     and p2 == p2_last_pair.buyer
                 ):
-                    cost += COST_OF_PARING_SAME_TYPE
+                    cost += COST_OF_PAIRING_SAME_TYPE
                     whys[i, j].append("were the same role last round")
 
             weights[i, j] = cost
