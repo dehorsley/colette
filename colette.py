@@ -378,26 +378,29 @@ def email(path="data", round=None):
     with (path / f"round_{round:03d}.csv").open() as f:
         pairs = load_round(f, people_by_name)
 
-    def email_template(address, pair, template):
+    def msg_from_template(address, pair, template):
         msg = EmailMessage()
         msg.set_content(template.render(organiser=p.organiser, buyer=p.buyer))
 
         msg["Subject"] = "coffee time!"  # TODO: customize this
         msg["From"] = "colette@example.com"  # TODO: load from config
         msg["To"] = address
-
-        # TODO: handoff to smtp server or the like
-        # TODO: load SMTP (or the like) server from config
-        print(msg)
+        return msg
 
     # iterate over all unique pairs: NB each pair can be in the pairs dict at
     # most once, one time for each member.
+    msgs = []
     for p in set(pairs.values()):
         if p.buyer == p.organiser:
-            email_template(p.buyer.email, p, excluded_template)
+            msgs.append(msg_from_template(p.buyer.email, p, excluded_template))
             continue
-        email_template(p.buyer.email, p, buyer_template)
-        email_template(p.organiser.email, p, organiser_template)
+        msgs.append(msg_from_template(p.buyer.email, p, buyer_template))
+        msgs.append(msg_from_template(p.organiser.email, p, organiser_template))
+
+    s = smtplib.SMTP("localhost:1025")
+    for msg in msgs:
+        s.send_message(msg)
+    s.quit()
 
 
 if __name__ == "__main__":
