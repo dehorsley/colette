@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ---
 title: 'Collete: A networking programme for coffee-pairings to build research connections'
 tags:
@@ -26,7 +27,7 @@ bibliography: paper.bib
 
 # Summary
 
-Effective scientific collaboration is necessary to make efficient use of limited funding to solve issues common across fisheries science. Instigating networking across multiple organisations and disciplines is one way of improving the chances of new collaborations forming. A common roadblock within government departments and research organisations is access to simple, free, open-access software to facilitate networking that does not increase administration burdens. 
+Effective scientific collaboration is necessary to make efficient use of limited funding to solve issues common across fisheries science. Instigating and facilitating networking across multiple government and research organisations, and disciplines is one way of improving the chances of new collaborations forming. With a lack of in-person conferences and inter-group workshops in 2020, there was an opportunity to find a new way to create links between fisheries scientists in organisations based in Hobart. A common roadblock within government departments and research organisations is access to simple, free, open-access software to facilitate networking that does not increase administration burdens. The software randomly pairs people from different organisations, for multiple rounds of coffee, while taking into account leaving or joining the group. The software contains functionality for integration into an email / exchange platform (? not sure how to phrase this - ?) for automation of email sending.
 
 # Statement of need
 
@@ -34,7 +35,7 @@ Effective scientific collaboration is necessary to make efficient use of limited
 
 Python was chosen as it enables a user-friendly output (.csv files) and the ability to integrate with SQLite for storage of pairings in a database that can then be joined with other databases. Python is a flexible and popular programming language, so there are opportunities to build and develop the package within the data / programming / nerd (?) community.
 
-`Colette` was designed to be used by anyone wanting to facilitate collaboration pairings. It is currently being used in Hobart to facilitate coffee pairings between fisheries scientists at the University of Tasmania, the Commonwealth Scientific and Industrial Research Organisation (CSIRO), the Australian Antarctic Division (within the Commonwealth Department of Agriculture, Water, and the Environment), and the Tasmanian State Department for Primary Industry, Parks, Wildlife and the Environment (DPIPWE), and has already facilitated collaborations between interdisciplinary scientists. The software will also be used by the Institute of Marine and Antarctic Studies (IMAS) postdoctoral researchers for regular pairings, and speed-networking events.
+`Colette` is designed to be used by anyone wanting to facilitate collaboration pairings. It is currently being used in Hobart to facilitate coffee pairings between fisheries scientists at the University of Tasmania, the Commonwealth Scientific and Industrial Research Organisation (CSIRO), the Australian Antarctic Division (within the Commonwealth Department of Agriculture, Water, and the Environment), and the Tasmanian State Department for Primary Industry, Parks, Wildlife and the Environment (DPIPWE), and has already facilitated collaborations between interdisciplinary scientists. The software will also be used by the Institute of Marine and Antarctic Studies (IMAS) postdoctoral researchers for regular pairings, and speed-networking events.
 
 # Mathematics
 
@@ -84,4 +85,4 @@ We acknowledge support from Jaimie Cleeland and Philippe Ziegler for the initial
 
 # References
 
----
+=======
