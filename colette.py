@@ -35,7 +35,10 @@ COST_OF_PAIRING_PREVIOUS_PARTNER_N = 10
 
 random.seed(1987)  # for reproducibility
 
-
+# Declaring class for later use.  the "dataclass" decorator defines some useful
+# methods on the class, like a sensible init and equals.  The option "frozen"
+# means an object can't be modified once created, which can be useful for
+# catching bugs but also means the object can be used as a key in a dictionary.
 @dataclass(frozen=True)
 class Person:
     name: str
@@ -49,10 +52,12 @@ class Pair:
     organiser: Person
     buyer: Person
 
+    # magic "dunder" method for "in" syntax
     def __contains__(self, item):
         return self.organiser == item or self.buyer == item
 
 
+# just for type checking, not used by Python.
 Round = dict[Person, Pair]
 
 
@@ -64,10 +69,18 @@ def find_optimal_pairs(N, weights) -> (float, list[tuple[int, int]]):
     Returns the objective value and list of pairs.
     """
 
+    # list of of all possible pairs of players. Note, we make list unique by
+    # using a "standard" from where i < j. No constraints yet.
     pairs = [(i, j) for i in range(N) for j in range(i, N)]
     # note: people are excluded from the round by pairing with themselves
 
     def pairs_containing(k):
+        """
+        pairs_containing list all pairs (in the standard form above)
+        """
+
+        # chain joins the two lists together: first runs along column of "p"s matrix
+        # second along row
         return chain(((i, k) for i in range(k)), ((k, i) for i in range(k, N)))
 
     m = mip.Model()
@@ -85,6 +98,8 @@ def find_optimal_pairs(N, weights) -> (float, list[tuple[int, int]]):
     if status != mip.OptimizationStatus.OPTIMAL:
         raise Exception("not optimal")
 
+    # The solution is returned as a list of 0.0 or 1.0 values, we only want a list
+    # of pairs that are in the solution
     return m.objective_value, [(i, j) for i, j in pairs if p[i, j].x > 0.5]
 
 
