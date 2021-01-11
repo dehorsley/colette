@@ -1,0 +1,87 @@
+---
+title: 'Collete: A networking programme for coffee-pairings to build research connections'
+tags:
+  - Python
+  - fisheries
+  - networking
+  - coffee-pairings
+authors:
+  - name: David E. Horsley #^[Custom footnotes for e.g. denoting who the corresponding author is can be included like this.]
+    orcid: 0000-0003-0872-7098
+    affiliation: 1 # (Multiple affiliations must be quoted)
+  - name: Genevieve A.C. Phillips^[Corresponding author]
+    orcid: 0000-0002-2347-2321
+    affiliation: "2,3"
+affiliations:
+ - name: Hydro Tasmania
+   index: 1
+ - name: Institute of Marine and Antarctic Studies, University of Tasmania
+   index: 2
+ - name: Centre for Marine Socioecology, University of Tasmania
+   index: 3
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+bibliography: paper.bib
+
+---
+
+# Summary
+
+Effective scientific collaboration is necessary to make efficient use of limited funding to solve issues common across fisheries science. Instigating and facilitating networking across multiple government and research organisations, and disciplines is one way of improving the chances of new collaborations forming. With a lack of in-person conferences and inter-group workshops in 2020, there was an opportunity to find a new way to create links between fisheries scientists in organisations based in Hobart. A common roadblock within government departments and research organisations is access to simple, free, open-access software to facilitate networking that does not increase administration burdens. The software randomly pairs people from different organisations, for multiple rounds of coffee, while taking into account leaving or joining the group. The software contains functionality for integration into an email / exchange platform (? not sure how to phrase this - ?) for automation of email sending.
+
+# Statement of need
+
+`Colette` is a Python package for facilitating networking. `Colette` allows for random pairings of individuals from multiple organisations in a population. Pairings are favoured between individuals of different organisations, and recent pairings between individuals are penalised so that individuals meet as many individuals within the population as possible before re-pairings occur. Pairings with self are removed from the round. Each run of the software produces one round of pairings. The novel aspect of the programme is that multiple rounds of pairings are possible and produce pairings based on prior rounds. This allows for ease of tracking pairings, and assurance that individuals are not being randomly assigned the same partner each round. Pairings with self, or recently paired individuals are penalised, Individuals can leave and re-join the population with no penalty, and a reduced likelihood of pairing with their last pair when they return. The package allows for integration with a mail provider to automate emails if required or desired.
+
+Python was chosen as it enables a user-friendly output (.csv files) and the ability to integrate with SQLite for storage of pairings in a database that can then be joined with other databases. Python is a flexible and popular programming language, so there are opportunities to build and develop the package within the data / programming / nerd (?) community.
+
+`Colette` is designed to be used by anyone wanting to facilitate collaboration pairings. It is currently being used in Hobart to facilitate coffee pairings between fisheries scientists at the University of Tasmania, the Commonwealth Scientific and Industrial Research Organisation (CSIRO), the Australian Antarctic Division (within the Commonwealth Department of Agriculture, Water, and the Environment), and the Tasmanian State Department for Primary Industry, Parks, Wildlife and the Environment (DPIPWE), and has already facilitated collaborations between interdisciplinary scientists. The software will also be used by the Institute of Marine and Antarctic Studies (IMAS) postdoctoral researchers for regular pairings, and speed-networking events.
+
+# Mathematics
+
+`Colette` uses some decision / matrix maths.
+
+Single dollars ($) are required for inline mathematics e.g. $f(x) = e^{\pi/x}$
+
+Double dollars make self-standing equations:
+
+$$\Theta(x) = \left\{\begin{array}{l}
+0\textrm{ if } x < 0\cr
+1\textrm{ else}
+\end{array}\right.$$
+
+You can also use plain \LaTeX for equations
+\begin{equation}\label{eq:fourier}
+\hat f(\omega) = \int_{-\infty}^{\infty} f(x) e^{i\omega x} dx
+\end{equation}
+and refer to \autoref{eq:fourier} from text.
+
+# Citations
+
+Citations to entries in paper.bib should be in
+[rMarkdown](http://rmarkdown.rstudio.com/authoring_bibliographies_and_citations.html)
+format.
+
+If you want to cite a software repository URL (e.g. something on GitHub without a preferred
+citation) then you can do it with the example BibTeX entry below for @fidgit.
+
+For a quick reference, the following citation commands can be used:
+- `@author:2001`  ->  "Author et al. (2001)"
+- `[@author:2001]` -> "(Author et al., 2001)"
+- `[@author1:2001; @author2:2001]` -> "(Author1 et al., 2001; Author2 et al., 2002)"
+
+# Figures
+
+Figures can be included like this:
+![Caption for example figure.\label{fig:example}](figure.png)
+and referenced from text using \autoref{fig:example}.
+
+Figure sizes can be customized by adding an optional second parameter:
+![Caption for example figure.](figure.png){ width=20% }
+
+# Acknowledgements
+
+We acknowledge support from Jaimie Cleeland and Philippe Ziegler for the initial nudge and encouragement to start the process. Also the Overland Track for facilitating collaboration and the fruition of the solution.
+
+# References
+
+---
