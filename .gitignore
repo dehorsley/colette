@@ -4,7 +4,7 @@ __pycache__/
 .mypy_cache
 
 venv/
-test_data/round*.csv
+tests/test_data/round*.csv
 data/
 
 
