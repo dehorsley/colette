@@ -160,47 +160,12 @@ For a quick reference, the following citation commands can be used:
 - `[@author:2001]` -> "(Author et al., 2001)"
 - `[@author1:2001; @author2:2001]` -> "(Author1 et al., 2001; Author2 et al., 2002)"
 
-# Figures
-
-Figures can be included like this:
-![Caption for example figure.\label{fig:example}](figure.png)
-and referenced from text using \autoref{fig:example}.
-
-Figure sizes can be customized by adding an optional second parameter:
-![Caption for example figure.](figure.png){ width=20% }
 
 # Acknowledgements
 
 We acknowledge support from Jaimie Cleeland and Philippe Ziegler for the initial nudge and encouragement to start the process. Also the Overland Track for facilitating collaboration and the fruition of the solution.
 
 # References
-
-=======
----
-title: 'Collete: A networking programme for coffee-pairings to build research connections'
-tags:
-  - Python
-  - fisheries
-  - networking
-  - coffee-pairings
-authors:
-  - name: David E. Horsley #^[Custom footnotes for e.g. denoting who the corresponding author is can be included like this.]
-    orcid: 0000-0003-0872-7098
-    affiliation: 1 # (Multiple affiliations must be quoted)
-  - name: Genevieve A.C. Phillips^[Corresponding author]
-    orcid: 0000-0002-2347-2321
-    affiliation: "2,3"
-affiliations:
- - name: Hydro Tasmania
-   index: 1
- - name: Institute of Marine and Antarctic Studies, University of Tasmania
-   index: 2
- - name: Centre for Marine Socioecology, University of Tasmania
-   index: 3
-date: "`r format(Sys.time(), '%d %B, %Y')`"
-bibliography: paper.bib
-
----
 
 # Summary
 
