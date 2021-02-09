@@ -16,13 +16,14 @@ def main():
     parser.add_argument(
         "--path",
         "-p",
-        help="path to directory containing people and round data",
-        default="data",
+        help="path to directory containing people and round data (default '.')",
+        default=".",
     )
     subparsers = parser.add_subparsers(title="commands")
 
     new_parser = subparsers.add_parser(
         "new",
+        help="create a new round",
         description="""
             create a new round. The list of pairings is saved in round_N.csv in
             the data directory, where N is the current round, inferred from the
@@ -33,6 +34,7 @@ def main():
 
     email_parser = subparsers.add_parser(
         "email",
+        help="email the participants of a round",
         description="""
         email the participants of the last round — or the round specified — their partner and role.
         """,
