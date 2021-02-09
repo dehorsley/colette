@@ -1,18 +1,33 @@
 # Colette: Coffee Roulette — pair with a random person for coffee
 
-## Usage
+## Installaiton
+
 Requires Python 3.9 or later installed.
 
-Create a file in subdirectory 'data' called people.csv with at least columns
-'name', 'organisation', 'email', and 'active'. 
+Open a command line and run:
 
-Each participating (or previously participating) player should be listed in each row. The
-active column should contain 'true' if a player is going to participate in new
-rounds. Hopefully the other fields are self explanatory.
+    pip install colette
 
-Run
+## Usage
 
-    python colette.py new
+Create a file called people.csv with at least columns 'name', 'organisation',
+'email', and 'active'.
+
+Each participating (or previously participating) player should be listed in
+each row. The active column should contain 'true' if a player is going to
+participate in new rounds.
+
+Run, from a command line in the directory of your previously created
+'people.csv':
+
+    colette new
+
+> Note: you may need to add the path pip installed colette too to your PATH
+> enviroment variable.
+>
+> Alternativly you can run colette as
+>
+>     python -m colette
 
 This will generate a new `round*.csv`, with pairs chosen to minimize the number
 of people paired together in the same organisation, and those previously
