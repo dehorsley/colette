@@ -398,7 +398,8 @@ def email(path="data", round=None):
         msgs.append(msg_from_template(p.buyer.email, p, buyer_template))
         msgs.append(msg_from_template(p.organiser.email, p, organiser_template))
 
-    s = smtplib.SMTP(cfg["email"]["server"])
+    s = smtplib.SMTP(cfg["email"]["server"], cfg["email"].getint("port", fallback=587))
+    s.ehlo()
 
     if cfg["email"].getboolean("ssl", fallback=False):
         import ssl
