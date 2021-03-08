@@ -163,7 +163,7 @@ following components:
 
 The problem can then be approached by standard integer programming methods.
 In this work we find solutions using the COIN-OR Branch-&-Cut CBC [@coin-or-cbc] solver via
-the Python MIP package [python-mip].
+the Python MIP package [@python-mip].
 
 The various constants (the $c$ parameters) could in principle be tuned to
 express the initiative's organiser's relative importance of a particular
