@@ -1,5 +1,5 @@
 ---
-title: 'Collete: A networking programme for coffee-pairings to build research connections'
+title: 'Collete: A networking program for coffee-pairings to build research connections'
 tags:
   - Python
   - fisheries
@@ -49,7 +49,7 @@ organisations, and recent pairings between individuals are penalised so that
 individuals meet as many individuals within the population as possible before
 re-pairings occur. Pairings with self are removed from the round. Each run of
 the software produces one round of pairings. The novel aspect of the
-programme is that multiple rounds of novel pairings are possible and are generated
+program is that multiple rounds of novel pairings are possible and are generated
 based on prior rounds. For example, pairings do not reoccur until individuals have been paired with all others in the population. This allows for ease of tracking pairings,
 and assurance that individuals are not being randomly assigned the same
 partner each round. Pairings with self, or recently paired individuals are
@@ -75,17 +75,19 @@ software will also be used by the Institute of Marine and Antarctic Studies
 (IMAS) postdoctoral researchers for regular pairings, and speed-networking
 events.
 
-# Method
+# Methods
 
-Our goal is to formulate an efficiently method
-for generating pairings with the desired properties.
+The main idea behind `Colette` is to randomly pair people from different organisations to maximise networking opportunities. Therefore, the main desired properties of the program are that:
 
-THAT DOES NOT MAKE SENSE ^^
+1) Pairings are favoured between people in different organisations (i.e. a person from the Australian Antarctic Division (AAD) will be paired with someone from any other organisation before being paired with someone from the AAD)
+2) Pairings with self are generated to ensure the full complement of pairings, but are then rejected
+3) Novel pairings are favoured over those that have already occurred in previous rounds, until 10 rounds have occurred
+4) Each person is given a role that alternates - coffee 'buyer' or venue 'organiser' (i.e. a 'buyer' in round 1 will be paired with a 'buyer' in the following round, so they become the 'organiser').
 
-The main insight of this work is that we may formulate the problem as an
-integer program. NOR DOES THIS. IS IT AN INSIGHT?
+To do this, we approached the problem as an integer program, with N "players" in each round, using the COIN-OR Branch-&-Cut CBC [@coin-or-cbc] solver via
+the Python MIP package [@python-mip]. Briefly, these methods do XYZ
 
-To do this we begin with some notation. I DON"T THINK YOU BEGIN WITH NOTATION - PERHAPS BEGIN WITH UNDERSTANDING THE PROBLEM? If we have N "players" in the round,
+With N "players" in each round,
 labeled $1\ldots N$, we let
 $$
 p_{ij} \in \{0,1\}, \quad 1\le i \le N,\ i \le j \le N,
@@ -99,17 +101,14 @@ Here we have used variables with the same index, $p_{ii}$, to denote that the
 player $i$ has been excluded from the round. This will be useful later. WHY WILL IT BE USEFUL LATER?
 
 Our one constraint on the decision variables come from the requirement that players
-can only be in one pair or are from the round, expressed as
-
-"CAN ONLY BE IN ONE PAIR OR ARE FROM THE ROUND"? Doesn't make sense?
-
+can only be in one pair or are from the previous round (?), expressed as
 
 $$
 \sum_{i=1}^{k}p_{ik} + \sum_{i=k+1}^{N}p_{ki} = 1.
 $$
 
 The other properties we desire of the rounds are introduced not as hard
-constraints, but as a penalised cost. For example, including a player pairing that violates one of the properties
+constraints, but as penalised costs. For example, including a player pairing that violates one of the properties noted above
 is penalised. The total cost of the round is then to be
 minimised as the objective of the program. That is:
 
@@ -126,7 +125,7 @@ following components:
   w^P_{ij} = \sum_{r=1}^{R-1} w_{ijr},
   $$
 
-  Where the sum is over previous rounds with:  THIS MAKES NO SENSE 
+  Where the sum over previous rounds is:
 
   $$
     w_{ijr} = 
@@ -137,9 +136,7 @@ following components:
     \end{cases}
   $$
 
-- To limit pairs in the same group, we add the weight 
-
-DOES GROUP = ORGANISATION??
+- To limit pairs in the same organisation, we add the weight 
 
   $$ 
   w^G_{ij} = 
@@ -159,7 +156,7 @@ DOES GROUP = ORGANISATION??
     \end{cases}
   $$
 
-- To limit the number of players who are placed in a repeated role (organiser or coffee buyer), we add: THIS IS THE FIRST TIME YOU HAVE TALKED ABOUT ROLES - THIS NEEDS TO BE INTRODUCED EARLIER
+- To limit the number of players who are placed in a repeated role (organiser or coffee buyer), we add:
 
   $$
     w^R_{ij} =  
@@ -169,17 +166,9 @@ DOES GROUP = ORGANISATION??
     \end{cases}
   $$
 
-
-
-The problem can then (WHY NOW? THERE NEED TO BE MORE WORDS/INTRODUCTION HERE) be approached using standard integer programming methods.
-In this work we find solutions using the COIN-OR Branch-&-Cut CBC [@coin-or-cbc] solver via
-the Python MIP package [@python-mip].
-
-BRIEFLY, THIS METHOD DOES XYZ
-
 The various constants (the $c$ parameters) could in principle be tuned to
-express the initiative's organiser's relative importance of a particular
-property, however we leave them fixed at some sensible values to simplify the
+express the initiative's relative importance of a particular
+property - for example if pairings within organisations was not as important to avoid as changing the role of the player in each round. However in this iteration of the program, we have left them fixed at sensible values to simplify the
 user interface.
 
 # Acknowledgements
