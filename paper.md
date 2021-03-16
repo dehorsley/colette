@@ -126,7 +126,7 @@ Our one constraint on the decision variables $p_{ij}$ come from the requirement 
 a player can be in at most one pairing; expressed as:
 
 $$
-\sum_{i=1}^{k}p_{ik} + \sum_{i=k+1}^{N}p_{ki} = 1,\quad k=1\ldotsN.
+\sum_{i=1}^{k}p_{ik} + \sum_{i=k+1}^{N}p_{ki} = 1,\quad k=1 \ldots N.
 $$
 
 The other properties we desire of the rounds are introduced not as hard
