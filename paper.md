@@ -1,5 +1,5 @@
 ---
-title: 'Collete: A networking programme for coffee-pairings to build research connections'
+title: 'Collete: A networking program for coffee-pairings to build research connections'
 tags:
   - Python
   - fisheries
@@ -50,15 +50,16 @@ individuals meet as many individuals within the population as possible before
 re-pairings occur. Each run of
 the software produces one round of pairings. The novel aspect of the
 program is that multiple rounds of distinct pairings are possible and are generated
-based on prior rounds. For example, pairings are unlikely reoccur until individuals have been paired with all others in the population. This allows for ease of tracking pairings,
+based on prior rounds. This allows for ease of tracking pairings,
 and assurance that individuals are not being randomly assigned the same
 partner each round. Individuals can leave and re-join the population with no penalty,
 and a reduced likelihood of pairing with their last pair when they return.
-The package allows for integration with a mail provider to automate emails if
+The package allows for interfacing with an SMTP server to automate emails if
 required or desired.
 
 Python was chosen due to the author's familiarity with the language and the
-number of high quality operations research packages available.
+number of high quality packages available for operations research and email
+creation.
 
 `Colette` is designed to be used by anyone wanting to facilitate
 collaboration pairings. It is currently being used in Hobart to facilitate
@@ -74,52 +75,81 @@ events.
 
 # Method
 
-Here we outline the approach to creating pairings taken by `colette`.
+The main idea behind `Colette` is to randomly pair people from different
+organisations or groups to maximise networking opportunities. Therefore, the
+main desired properties of the program's output are that:
 
-The main insight of this work is that we may reduce the problem
-to one with well established efficient algorithms for finding solutions, 
-by formulating the problem as an integer program. 
+1)  Pairings are favoured between people in different organisations (i.e. a
+    person from the Australian Antarctic Division (AAD) will be paired with
+    someone from any other organisation before being paired with someone from
+    the AAD).
 
-To write the problem as an integer program, if we assume we have N "players" in
-the round, labeled $1\ldots N$, we let
+2)  Novel pairings are favoured over those that have already occurred in
+    previous rounds. The implementation currently only consdiers the last 10 rounds.
+
+3)  Each person is given a role in the pair that preferentially alternates -
+    coffee 'buyer' or venue 'organiser' (i.e. a 'buyer' in round 1 will be
+    paired with a 'buyer' in the following round, so they become the
+    'organiser'). This is done to prevent a standoff where each participant is expecting
+    the other to reachout and organise the meetup.
+
+4)  If no satisfactory pairing can be made for a player, the player can be
+    excluded from the round. For example there is an odd number of people, or
+    the player has recently paired with all viable participants. In the current
+    implementation, this is recorded as the player pairing with themselves to
+    keep a record for future rounds, to prevent a player being repeteded
+    excluded, and differentiate from a when a player did participate in the
+    round voluntarily.
+
+To find pairs satisfying the above requirements efficiently, we formulate the
+problem as a linear integer program and rely on the advanced techniques
+available to solve such optimisation problems. In the implementation
+we use the COIN-OR CBC solver [@coin-or-cbc], via the Python MIP package
+[@python-mip], to find solutions problem. The CBC solver uses the
+Branch-and-Cut method to solve linear mixed integer programs; relaxing the
+integer constraints and solving the resulting linear program, then using
+cutting planes to tighten the integer constraints.
+
+To state the problem as an integer program, we begin by considering find 
+pairs in the $R$th round, given with N "players". We let
 
 $$
 p_{ij} \in \{0,1\}, \quad 1\le i \le N,\ i \le j \le N,
 $$
 
 denote that player $i$ and $j$ are to be paired in the current round.
-
 Here we have used variables with the same index, $p_{ii}$, to denote that the
-player $i$ has been excluded from the round. This will be useful later when we
-formulate our objective function.
+player $i$ has been excluded from the round. This allows us to track exclusion
+and will be useful when we formulate the objective for the problem.
 
 Our one constraint on the decision variables $p_{ij}$ come from the requirement that
-a player can be in at most one pairing, expressed as
+a player can be in at most one pairing; expressed as:
 
 $$
 \sum_{i=1}^{k}p_{ik} + \sum_{i=k+1}^{N}p_{ki} = 1,\quad k=1\ldotsN.
 $$
 
 The other properties we desire of the rounds are introduced not as hard
-constraints, but as a penalised cost. For example, including a player pairing
-that violates one of the properties is penalised. The total cost of the round
-is then to be minimised as the objective of the program. That is:
+constraints, but instead penalised by some weight. That is, including a
+player pairing that violates one of the properties noted above is penalised.
+The total weight of the round is then to be minimised as the objective of the
+program: 
 
 $$
   \min \sum_{i,j} w_{ij}p_{ij}.
 $$
 
-The cost of including players $i$, $j$, that is $w_{ij}$, comprises the
+The weight of pairing of players $i$, $j$, that is $w_{ij}$, comprises the
 following components:
 
-- To prevent repeated pairing, in a round R, we add a weight to pair $i,j$
+- To prevent repeated pairing, in the round $R$, we add a weight to pair $i,j$
   dependent on previous rounds:
 
   $$ 
   w^P_{ij} = \sum_{r=1}^{R-1} w_{ijr},
   $$
 
-  with the weight due to the $r$th round being:
+  with the weight due to the previous $r$th round being:
 
   $$
     w_{ijr} = 
@@ -130,7 +160,12 @@ following components:
     \end{cases}
   $$
 
-- To limit pairs in the same group, we add the weight 
+  (It should be noted that this weight also apply to the decision variables
+  with repeated subscripts, the $p_{ii}$, which are use to track when a player
+  is excluded. In this case, this weight create a disincentive to repeatedly
+  excluding the same player.) 
+
+- To limit pairs in the same organisation, we add the weight 
 
   $$ 
   w^G_{ij} = 
@@ -160,19 +195,23 @@ following components:
     \end{cases}
   $$
 
+- To give the initiative's organiser some additional control, we also allow an
+  "override" weight to be added to the weight of any pair. This could be useful
+  if the organiser knows a pair will not get on, or conversely would like to
+  incentivise the pair to meet.
 
 
-With the problem stated as a linear integer program, it can now be approached using
-standard combinatorial optimisation methods.  In this work we find solutions to
-the pairing problem using the COIN-OR CBC [@coin-or-cbc] solver via the Python
-MIP package [@python-mip]. The CBC solver uses the Branch-and-Cut method to solve
-the program; relaxing the integer constraints and solving the resulting linear
-program, then using cutting planes to tighten the integer constraints.
+The various constants (the $c$ parameters) could, in principle, be tuned to
+express the initiative's relative importance of a particular
+property - for example if pairings within organisations was not as important to
+avoid as changing the role of the player in each round. However in this
+iteration of the program, we have left them fixed at sensible values to
+simplify the user interface.
 
-The various constants (the $c$ parameters) could in principle be tuned to
-express the initiative's organiser's relative importance of a particular
-property, however we leave them fixed at some sensible values to simplify the
-user interface.
+Once a solution has been found, the list of the pairs is saved to a CSV file.
+This can than be used to send emails to the participants, and in 
+future rounds when determining the weights.
+
 
 # Acknowledgements
 
