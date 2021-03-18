@@ -35,7 +35,7 @@ workshops in 2020, there was an opportunity to find a new way to create links
 between fisheries scientists in organisations based in Hobart. A common
 obstruction within government departments and research organisations is access
 to simple, free, open-access software to facilitate networking that does not
-increase administration burdens. The software randomly pairs people from
+increase administrative burdens. The software randomly pairs people from
 different organisations, for multiple rounds of networking, while taking into
 account individuals leaving, joining, or re-joining the group. The software contains functionality
 to automatically email participants based on pre-constructed templates.
@@ -46,14 +46,14 @@ to automatically email participants based on pre-constructed templates.
 for random pairings of individuals from multiple organisations in a
 population. Pairings are favoured between individuals of different
 organisations, and recent pairings between individuals are penalised so that
-individuals meet as many individuals within the population as possible before
-re-pairings occur. Each run of
-the software produces one round of pairings. The novel aspect of the
-program is that multiple rounds of distinct pairings are possible and are generated
+individuals meet as many others within the population as possible before
+re-pairings occur. Each run of the software produces one round of pairings.
+
+The novel aspect of the program is that multiple rounds of unique pairings are possible and are generated
 based on prior rounds. This allows for ease of tracking pairings,
-and assurance that individuals are not being randomly assigned the same
+and assurance that individuals are not being randomly assigned to the same
 partner each round. Individuals can leave and re-join the population with no penalty,
-and a reduced likelihood of pairing with their last pair when they return.
+and with the reduced likelihood of pairing with their last partner when they return.
 The package allows for interfacing with an SMTP server to automate emails if
 required or desired.
 
@@ -70,8 +70,7 @@ Agriculture, Water, and the Environment), and the Tasmanian State Department
 for Primary Industry, Parks, Wildlife and the Environment (DPIPWE), and has
 already facilitated collaborations between interdisciplinary scientists. The
 software will also be used by the Institute of Marine and Antarctic Studies
-(IMAS) postdoctoral researchers for regular pairings, and speed-networking
-events.
+(IMAS) postdoctoral researchers for speed-networking events.
 
 # Method
 
@@ -85,33 +84,31 @@ main desired properties of the program's output are that:
     the AAD).
 
 2)  Novel pairings are favoured over those that have already occurred in
-    previous rounds. The implementation currently only consdiers the last 10 rounds.
+    previous rounds. The implementation currently only considers the previous 10 rounds of pairings.
 
-3)  Each person is given a role in the pair that preferentially alternates -
+3)  Each person is given a role in the pair that alternates -
     coffee 'buyer' or venue 'organiser' (i.e. a 'buyer' in round 1 will be
     paired with a 'buyer' in the following round, so they become the
-    'organiser'). This is done to prevent a standoff where each participant is expecting
-    the other to reachout and organise the meetup.
+    'organiser'). This is done to prevent a stand-off where each participant is expecting
+    the other to reach out and organise the meet-up.
 
-4)  If no satisfactory pairing can be made for a player, the player can be
-    excluded from the round. For example there is an odd number of people, or
-    the player has recently paired with all viable participants. In the current
-    implementation, this is recorded as the player pairing with themselves to
-    keep a record for future rounds, to prevent a player being repeteded
-    excluded, and differentiate from a when a player did participate in the
-    round voluntarily.
+4)  If no satisfactory pairing can be made for a player, the player is
+    excluded from the round. For example if there are an odd number of players within the population, or
+    the player has recently paired with all others available. In the current
+    implementation, this is recorded by the player concerned being paired with themselves and output in a CSV file. This functionality allows the organiser to keep a record for future rounds that will prevent a player from being repeatedly
+    excluded, and to differentiate from a when a player did not participate in the
+    round voluntarily (i.e. they opted out).
 
-To find pairs satisfying the above requirements efficiently, we formulate the
-problem as a linear integer program and rely on the advanced techniques
+To find pairs satisfying the above requirements efficiently, we formulated the
+problem as a linear integer program and used the advanced techniques
 available to solve such optimisation problems. In the implementation
-we use the COIN-OR CBC solver [@coin-or-cbc], via the Python MIP package
-[@python-mip], to find solutions problem. The CBC solver uses the
-Branch-and-Cut method to solve linear mixed integer programs; relaxing the
-integer constraints and solving the resulting linear program, then using
-cutting planes to tighten the integer constraints.
+we used the COIN-OR CBC solver [@coin-or-cbc], via the Python MIP package
+[@python-mip], to find solutions to the problem. The CBC solver uses the
+Branch-and-Cut method to solve linear mixed integer programs by relaxing the
+integer constraints and solving the resulting linear program. Cutting planes are then used to tighten the integer constraints.
 
-To state the problem as an integer program, we begin by considering find 
-pairs in the $R$th round, given with N "players". We let
+To state the problem as an integer program, we begin by considering finding 
+pairs in the $R$th round, with N "players". We let
 
 $$
 p_{ij} \in \{0,1\}, \quad 1\le i \le N,\ i \le j \le N,
@@ -119,20 +116,20 @@ $$
 
 denote that player $i$ and $j$ are to be paired in the current round.
 Here we have used variables with the same index, $p_{ii}$, to denote that the
-player $i$ has been excluded from the round. This allows us to track exclusion
-and will be useful when we formulate the objective for the problem.
+player $i$ has been excluded from the round. This allowed us to track player exclusion
+and is useful when we formulated the objective for the problem.
 
 Our one constraint on the decision variables $p_{ij}$ come from the requirement that
-a player can be in at most one pairing; expressed as:
+a player can be in at most one pairing, expressed as:
 
 $$
 \sum_{i=1}^{k}p_{ik} + \sum_{i=k+1}^{N}p_{ki} = 1,\quad k=1 \ldots N.
 $$
 
-The other properties we desire of the rounds are introduced not as hard
+The other properties we desired of the rounds are introduced not as hard
 constraints, but instead penalised by some weight. That is, including a
 player pairing that violates one of the properties noted above is penalised.
-The total weight of the round is then to be minimised as the objective of the
+The total weight of the round is then minimised as the objective of the
 program: 
 
 $$
@@ -142,8 +139,8 @@ $$
 The weight of pairing of players $i$, $j$, that is $w_{ij}$, comprises the
 following components:
 
-- To prevent repeated pairing, in the round $R$, we add a weight to pair $i,j$
-  dependent on previous rounds:
+- To prevent repeated pairing, in the round $R$, we added a weight to the pair $i,j$
+  that is dependent on previous rounds:
 
   $$ 
   w^P_{ij} = \sum_{r=1}^{R-1} w_{ijr},
@@ -160,12 +157,12 @@ following components:
     \end{cases}
   $$
 
-  (It should be noted that this weight also apply to the decision variables
-  with repeated subscripts, the $p_{ii}$, which are use to track when a player
-  is excluded. In this case, this weight create a disincentive to repeatedly
+  (It should be noted that this weight also applies to the decision variables
+  with repeated subscripts, the $p_{ii}$, which are used to track when a player
+  is excluded. In this case, this weight creates a disincentive to repeatedly
   excluding the same player.) 
 
-- To limit pairs in the same organisation, we add the weight 
+- To limit pairs in the same organisation, we added the weight 
 
   $$ 
   w^G_{ij} = 
@@ -175,7 +172,7 @@ following components:
     \end{cases}
   $$
 
-- To penalise excluding players, we add the weight
+- To penalise excluding players, we added the weight
 
   $$ 
   w^E_{ij} = 
@@ -185,7 +182,7 @@ following components:
     \end{cases}
   $$
 
-- To limit the number of players who are placed in a repeated role (organiser or coffee buyer), we add:
+- To limit the number of players who are placed in a repeated role (organiser or coffee buyer), we added:
 
   $$
     w^R_{ij} =  
@@ -195,10 +192,9 @@ following components:
     \end{cases}
   $$
 
-- To give the initiative's organiser some additional control, we also allow an
+- To give the initiative's organiser some additional control, we also allowed an
   "override" weight to be added to the weight of any pair. This could be useful
-  if the organiser knows a pair will not get on, or conversely would like to
-  incentivise the pair to meet.
+  if the organiser wishes to either incentivise or disincentivse a specific pairing (i.e. PhD students only meeting other students).
 
 
 The various constants (the $c$ parameters) could, in principle, be tuned to
@@ -208,9 +204,9 @@ avoid as changing the role of the player in each round. However in this
 iteration of the program, we have left them fixed at sensible values to
 simplify the user interface.
 
-Once a solution has been found, the list of the pairs is saved to a CSV file.
-This can than be used to send emails to the participants, and in 
-future rounds when determining the weights.
+Once a solution has been found, the list of pairings is saved to a CSV file.
+This can than be used to send emails to the participants, and used in 
+future rounds to determine weightings.
 
 
 # Acknowledgements
