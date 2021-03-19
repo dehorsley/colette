@@ -86,11 +86,12 @@ main desired properties of the program's output are that:
 2)  Novel pairings are favoured over those that have already occurred in
     previous rounds. The implementation currently only considers the previous 10 rounds of pairings.
 
-3)  Each person is given a role in the pair that alternates -
+3)  Each person is given a role in the pair -
     coffee 'buyer' or venue 'organiser' (i.e. a 'buyer' in round 1 will be
     paired with a 'buyer' in the following round, so they become the
     'organiser'). This is done to prevent a stand-off where each participant is expecting
-    the other to reach out and organise the meet-up.
+    the other to reach out and organise the meet-up. Pairs that allow the players to swap their
+    role from their previous round are prefered.
 
 4)  If no satisfactory pairing can be made for a player, the player is
     excluded from the round. For example if there are an odd number of players within the population, or
@@ -99,13 +100,13 @@ main desired properties of the program's output are that:
     excluded, and to differentiate from a when a player did not participate in the
     round voluntarily (i.e. they opted out).
 
-To find pairs satisfying the above requirements efficiently, we formulated the
-problem as a linear integer program and used the advanced techniques
-available to solve such optimisation problems. In the implementation
-we used the COIN-OR CBC solver [@coin-or-cbc], via the Python MIP package
+To find pairs satisfying the above requirements efficiently, we formulate the
+problem as a linear integer program and use the advanced techniques
+available to solve such optimisation problems. In the current implementation
+we use the COIN-OR CBC solver [@coin-or-cbc], via the Python MIP package
 [@python-mip], to find solutions to the problem. The CBC solver uses the
-Branch-and-Cut method to solve linear mixed integer programs by relaxing the
-integer constraints and solving the resulting linear program. Cutting planes are then used to tighten the integer constraints.
+Branch-and-Cut method, an efficient method specialised for linear integer
+programs such as the one we formulate here.
 
 To state the problem as an integer program, we begin by considering finding 
 pairs in the $R$th round, with N "players". We let
@@ -116,8 +117,8 @@ $$
 
 denote that player $i$ and $j$ are to be paired in the current round.
 Here we have used variables with the same index, $p_{ii}$, to denote that the
-player $i$ has been excluded from the round. This allowed us to track player exclusion
-and is useful when we formulated the objective for the problem.
+player $i$ has been excluded from the round. This allows us to track player exclusion
+which is useful when we formulate the objective for the problem.
 
 Our one constraint on the decision variables $p_{ij}$ come from the requirement that
 a player can be in at most one pairing, expressed as:
@@ -126,8 +127,8 @@ $$
 \sum_{i=1}^{k}p_{ik} + \sum_{i=k+1}^{N}p_{ki} = 1,\quad k=1 \ldots N.
 $$
 
-The other properties we desired of the rounds are introduced not as hard
-constraints, but instead penalised by some weight. That is, including a
+The other properties we desire of the rounds we introduce not as hard
+constraints, but instead as coming with some penalised weight. That is, including a
 player pairing that violates one of the properties noted above is penalised.
 The total weight of the round is then minimised as the objective of the
 program: 
@@ -139,7 +140,7 @@ $$
 The weight of pairing of players $i$, $j$, that is $w_{ij}$, comprises the
 following components:
 
-- To prevent repeated pairing, in the round $R$, we added a weight to the pair $i,j$
+- To prevent repeated pairing, in the round $R$, we add a weight to the pair $i,j$
   that is dependent on previous rounds:
 
   $$ 
@@ -162,7 +163,7 @@ following components:
   is excluded. In this case, this weight creates a disincentive to repeatedly
   excluding the same player.) 
 
-- To limit pairs in the same organisation, we added the weight 
+- To limit pairs in the same organisation, we add the weight 
 
   $$ 
   w^G_{ij} = 
@@ -172,7 +173,7 @@ following components:
     \end{cases}
   $$
 
-- To penalise excluding players, we added the weight
+- To penalise excluding players, we add the weight
 
   $$ 
   w^E_{ij} = 
@@ -182,7 +183,7 @@ following components:
     \end{cases}
   $$
 
-- To limit the number of players who are placed in a repeated role (organiser or coffee buyer), we added:
+- To limit the number of players who are placed in a repeated role (organiser or coffee buyer), we add:
 
   $$
     w^R_{ij} =  
