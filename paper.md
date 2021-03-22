@@ -210,10 +210,14 @@ This can than be used to send emails to the participants, and used in
 future rounds to determine weightings.
 
 
-# Acknowledgements
+# Acknowledgements & Author Contributions
 
-We acknowledge support from Jaimie Cleeland and Philippe Ziegler for the
-initial nudge and encouragement to start the process. Also the Overland Track
+We acknowledge support from Genevieve's colleagues: Jaimie Cleeland and Philippe Ziegler for the
+initial nudge and encouragement to start the process. Also the Overland Track, Tasmania
 for facilitating collaboration and the fruition of the solution.
+
+Genevieve conceptualised the idea of the network and program, wrote and edited the paper, and facilitates the use of 
+the program between scientists in Hobart. David wrote the program in Python, wrote the mathematics
+section of the paper, and contributed to edits of the paper.
 
 # References
