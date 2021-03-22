@@ -11,7 +11,7 @@ authors:
     affiliation: 1
   - name: Genevieve A.C. Phillips^[Corresponding author]
     orcid: 0000-0002-2347-2321
-    affiliation: "2,3"
+    affiliation: "2,3,4"
 affiliations:
  - name: Horsley Consulting
    index: 1
@@ -19,6 +19,8 @@ affiliations:
    index: 2
  - name: Centre for Marine Socioecology, University of Tasmania
    index: 3
+ - name: Australian Antarctic Division, Department of Agriculture, Water, and the Environment
+   index: 4
 date: "2021-03"
 bibliography: paper.bib
 
