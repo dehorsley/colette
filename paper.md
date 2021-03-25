@@ -1,5 +1,5 @@
 ---
-title: 'Collete: A networking program for coffee-pairings to build research connections'
+title: 'Collete: A networking program to build research connections'
 tags:
   - Python
   - fisheries
