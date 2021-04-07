@@ -40,3 +40,10 @@ If you want to mark certain pairs as desired or undesired, create an
 players and an integer "cost" of adding this pair to the round. This will be
 added to the cost of pairing if the players have previously been pair or are in
 the same organisation. To prefer a pair, add a negative cost.
+
+To email people, run:
+
+    colette email
+    
+Before doing this, you need to set up the email templates (email.ini, excluded.template, organiser.template)
+and have these in the same folder.
