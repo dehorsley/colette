@@ -1,6 +1,6 @@
 # Colette: Coffee Roulette — pair with a random person for coffee
 
-## Installaiton
+## Installation
 
 Requires Python 3.9 or later installed.
 
@@ -25,7 +25,8 @@ Run, from a command line in the directory of your previously created
 > Note: you may need to add the path pip installed colette too to your PATH
 > enviroment variable.
 >
-> Alternativly you can run colette as
+> Alternative
+ly you can run colette as
 >
 >     python -m colette
 
