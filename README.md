@@ -78,10 +78,12 @@ Run, from a command line in the directory of your previously created 'people.csv
 
     colette new
 
-> Note: you may need to add the path pip installed colette too to your PATH
+> **Note**
+> 
+> You may need to add the path pip installed colette too to your PATH
 > enviroment variable.
 >
-> Alternative ly you can run colette as
+> Alternativly you can run colette as
 >
 >     python -m colette
 
