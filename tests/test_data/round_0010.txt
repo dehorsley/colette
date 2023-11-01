@@ -1,0 +1,5 @@
+people: people.config
+
+remove:
+- "John Smith" for 10 rounds
+- "Patty Smith" until 2024-10-10
