@@ -1,9 +1,55 @@
 import sys
 import argparse
+from os import PathLike
+from textwrap import dedent
+import warnings
 
 from inspect import signature
 
-from colette import email, new_round_from_path
+# from colette import email
+from colette import solver
+import colette.storage
+from dataclasses import replace
+
+
+def email():
+    raise NotImplementedError()
+
+
+def new_round_from_path(path: PathLike):
+    storage = colette.storage.FileStorage(path)
+    people = storage.load_people()
+    previous_rounds = storage.load_previous_rounds(people)
+
+    next_round = len(previous_rounds) + 1
+
+    # If there is a round config for the next round, load that
+    try:
+        round_config = storage.load_round_config(next_round, people)
+    except FileNotFoundError as e:
+        # make warning
+
+        warnings.warn(
+            dedent(
+                f"""
+            No round config for round {next_round}. Creating a basic config at {e.filename}.
+
+            If you wish to customise this round, please edit this file and delete
+            the solution file at {e.filename.replace("round", "solution")} 
+            """
+            )
+        ),
+
+        round_config = solver.RoundConfig(
+            number=next_round,
+            people=people,
+            overrides={},
+        )
+
+        storage.store_round_config(round_config)
+
+    solution = solver.solve_round(round_config, previous_rounds=previous_rounds)
+    storage.store_solution(solution)
 
 
 def main():

@@ -1,4 +1,4 @@
-from .people import Solution
+from .data import Solution
 from configparser import ConfigParser
 from email.message import EmailMessage
 from pathlib import Path
@@ -52,11 +52,11 @@ def email(solution: Solution, path="data"):
     # most once, one time for each member.
     msgs = []
     for p in set(solution.pairs.values()):
-        if p.buyer == p.organiser:
-            msgs.append(msg_from_template(p.buyer.email, p, excluded_template))
+        if p.secondary == p.primary:
+            msgs.append(msg_from_template(p.secondary.email, p, excluded_template))
             continue
-        msgs.append(msg_from_template(p.buyer.email, p, buyer_template))
-        msgs.append(msg_from_template(p.organiser.email, p, organiser_template))
+        msgs.append(msg_from_template(p.secondary.email, p, buyer_template))
+        msgs.append(msg_from_template(p.primary.email, p, organiser_template))
 
     s = smtplib.SMTP(cfg["email"]["server"], cfg["email"].getint("port", fallback=587))
     s.ehlo()
