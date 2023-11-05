@@ -31,7 +31,8 @@ class Person:
         # check the first line is the header
         if lines[0] != "name,organisation,email,active":
             raise ValueError(
-                "people.csv must have the following header: name,organisation,email,active"
+                "people.csv must have the following header:\n"
+                "name,organisation,email,active"
             )
 
         for line in lines[1:]:
@@ -165,7 +166,7 @@ class RoundConfig:
                         print(f"removing {name} until {date}")
                         people[name] = replace(people[name], active=False)
 
-                case {"name": name, **rest}:
+                case {"name": name}:
                     print(f"removing {name}")
                     people[name] = replace(people[name], active=False)
 

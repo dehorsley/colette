@@ -19,7 +19,7 @@ def email():
 def new_round_from_path(path: PathLike):
     storage = colette.storage.FileStorage(path)
     people = storage.load_people()
-    previous_rounds = storage.load_previous_rounds(people)
+    previous_rounds = storage.load_solutions(people)
 
     next_round = len(previous_rounds) + 1
 

@@ -29,7 +29,7 @@ class Storage(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def load_previous_rounds(self, people: dict[str, Person]) -> list[Solution]:
+    def load_solutions(self, people: dict[str, Person]) -> list[Solution]:
         raise NotImplementedError()
 
     @abstractmethod
@@ -69,10 +69,25 @@ class FileStorage(Storage):
         solution_file = self.path / f"solution_{round_number:06d}.toml"
         return Solution.load(solution_file, people)
 
-    def load_previous_rounds(self, people) -> list[Solution]:
-        return [
+    def load_solutions(self, people) -> list[Solution]:
+        toml_solutions = [
             Solution.load(file, people) for file in self.path.glob("solution_*.toml")
         ]
+
+        csv_files = self.path.glob("solution_*.csv")
+        for csv_file in csv_files:
+            toml_file = csv_file.with_suffix(".toml")
+            if toml_file.exists():
+                continue
+
+            round = int(csv_file.stem.split("_")[1])
+
+            toml_solutions.append(
+                Solution.loads_csv(csv_file.read_text(), people, round)
+            )
+        toml_solutions.sort(key=lambda s: s.round)
+
+        return toml_solutions
 
     def load_people(self) -> dict[str, Person]:
         path = self.path / "people.csv"
