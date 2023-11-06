@@ -9,7 +9,6 @@ from inspect import signature
 # from colette import email
 from colette import solver
 import colette.storage
-from dataclasses import replace
 
 
 def email():
@@ -50,6 +49,7 @@ def new_round_from_path(path: PathLike):
 
     solution = solver.solve_round(round_config, previous_rounds=previous_rounds)
     storage.store_solution(solution)
+    storage.store_solution(solution, type="csv")
 
 
 def main():

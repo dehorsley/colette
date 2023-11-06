@@ -45,9 +45,15 @@ class FileStorage(Storage):
         round_config_file = self.path / f"round_{round_config.number:06d}.toml"
         round_config.dump(round_config_file)
 
-    def store_solution(self, solution: Solution):
-        solution_file = self.path / f"solution_{solution.round:06d}.toml"
-        solution.dump(solution_file)
+    def store_solution(self, solution: Solution, type="toml"):
+        if type == "toml":
+            solution_file = self.path / f"solution_{solution.round:06d}.toml"
+            solution.dump(solution_file)
+        elif type == "csv":
+            solution_file = self.path / f"solution_{solution.round:06d}.csv"
+            solution.dump_csv(solution_file)
+        else:
+            raise ValueError(f"Unknown solution type {type}")
 
     def store_people(self, people: dict[str, Person]):
         path = self.path / "people.csv"

@@ -158,16 +158,13 @@ class RoundConfig:
             match r:
                 case {"name": name, "until": int(round)}:
                     if round > number:
-                        print(f"removing {name} until round {round}")
                         people[name] = replace(people[name], active=False)
 
                 case {"name": name, "until": date}:
                     if date > round_date:
-                        print(f"removing {name} until {date}")
                         people[name] = replace(people[name], active=False)
 
                 case {"name": name}:
-                    print(f"removing {name}")
                     people[name] = replace(people[name], active=False)
 
                 case _:
@@ -360,9 +357,14 @@ class Solution:
 
         return Solution(round=round, pairs=pairs, cost=cost, caviats=caviats)
 
+    @staticmethod
     def loads_csv(s: str, people: dict[str, Person], round: int) -> "Solution":
         """
         older style csv file, round needs to be infered from filename
+
+        optionaly add caviats by adding a semicolon separated list of caviats
+
+
         Example CSV file:
 
         primary,secondary
@@ -373,8 +375,9 @@ class Solution:
 
         pairs = set()
 
+        caviats = {}
+
         for p in csv_reader:
-            print(p)
             if "primary" not in p or "secondary" not in p:
                 raise ValueError(
                     "pairs must be a list of dicts with 'primary' and 'secondary' keys"
@@ -388,5 +391,33 @@ class Solution:
 
             pair = Pair(primary=people[p1], secondary=people[p2])
 
+            if "caviats" in p:
+                caviats[pair] = p["caviats"].split(";")
+
             pairs.add(pair)
-        return Solution(round=round, pairs=pairs, cost=-1, caviats={})
+        return Solution(round=round, pairs=pairs, cost=-1, caviats=caviats)
+
+    def dumps_csv(self) -> str:
+        """
+        older style csv file, round needs to be infered from filename
+
+
+        Example CSV file:
+
+        primary,secondary
+        Alice,Bob
+        Charlie,Dave
+        """
+        s = "primary,secondary,caviets\n"
+
+        for pair in self.pairs:
+            s += f"{pair.primary.name},{pair.secondary.name},"
+            if pair in self.caviats:
+                s += ";".join(self.caviats[pair])
+            s += "\n"
+
+        return s
+
+    def dump_csv(self, path: PathLike):
+        with open(path, "w") as f:
+            f.write(self.dumps_csv())
