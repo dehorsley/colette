@@ -1,4 +1,4 @@
-from .data import Solution
+from ..models import Solution
 from configparser import ConfigParser
 from email.message import EmailMessage
 from pathlib import Path

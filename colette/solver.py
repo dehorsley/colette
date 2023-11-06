@@ -1,4 +1,4 @@
-from .data import Person, Pair, RoundConfig, Solution
+from .models import Person, Pair, RoundConfig, Solution
 import random
 
 from itertools import chain

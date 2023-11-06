@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from .data import RoundConfig, Solution, Person
+from .models import RoundConfig, Solution, Person
 from pathlib import Path
 from os import PathLike
 from textwrap import dedent

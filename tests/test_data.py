@@ -5,7 +5,7 @@ import pytest
 import tomlkit
 from textwrap import dedent
 
-from colette.data import RoundConfig, Solution, Pair, Person
+from colette.models import RoundConfig, Solution, Pair, Person
 
 
 @pytest.fixture(scope="session")

@@ -6,13 +6,42 @@ import warnings
 
 from inspect import signature
 
-# from colette import email
 from colette import solver
 import colette.storage
 
 
-def email():
-    raise NotImplementedError()
+def email(path: PathLike, round: int = None, preview=True):
+    storage = colette.storage.FileStorage(path)
+    people = storage.load_people()
+    previous_solutions = storage.load_solutions(people)
+
+    if round is None:
+        # infer round from existing solution files
+        round = len(previous_solutions)
+        print(f"Sending emails for {round=}...")
+
+    # todo detect email client
+
+    ## outlook of macos
+
+    email_class = None
+    if sys.platform == "darwin":
+        from colette.email import outlook_macos
+
+        email_class = outlook_macos.OutlookMacOSEmail
+
+    elif sys.platform == "linux":
+        raise NotImplementedError("Linux email client not implemented")
+    elif sys.platform == "win32":
+        raise NotImplementedError("Windows email client not implemented")
+    else:
+        raise RuntimeError(f"Unsupported platform {sys.platform}")
+
+    emailer = email_class("templates")
+
+    solution = previous_solutions[round - 1]
+    round_config = storage.load_round_config(round, people)
+    emailer.send_email(solution, round_config, preview=preview)
 
 
 def new_round_from_path(path: PathLike):
@@ -90,6 +119,14 @@ def main():
         "-n",
         help="the number of the round to send the email notification to.",
         type=int,
+    )
+    email_parser.add_argument(
+        "--no-preview",
+        "-p",
+        dest="preview",
+        default=True,
+        action="store_false",
+        help="don't preview the email before sending",
     )
 
     email_parser.set_defaults(func=email)
