@@ -3,6 +3,15 @@ from .base import Message
 from appscript import app, k
 
 
+def check_installed() -> bool:
+    """Checks if Microsoft Outlook is installed on the system."""
+    try:
+        app("Microsoft Outlook")
+        return True
+    except:
+        return False
+
+
 def send_email(msgs: list[Message], preview=False):
     outlook = app("Microsoft Outlook")
 

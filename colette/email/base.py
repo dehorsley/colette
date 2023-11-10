@@ -1,6 +1,7 @@
 import warnings
 from dataclasses import dataclass, field
 from jinja2 import Environment, FileSystemLoader
+from typing import Optional
 
 from ..models import RoundConfig, Solution
 
@@ -21,8 +22,25 @@ class Message:
     attachments: list[str] = field(default_factory=list)
 
 
-def render_messages(solution: Solution, round_config: RoundConfig) -> list[Message]:
-    env = Environment(loader=FileSystemLoader("templates"))
+def render_messages(
+    solution: Solution,
+    round_config: RoundConfig,
+    env: Optional[Environment] = None,
+) -> list[Message]:
+    """
+    Renders email messages for each pair in the solution.
+
+    Args:
+        solution (Solution): The solution object containing pairs and caviats.
+        round_config (RoundConfig): The round configuration object.
+        env (Environment, optional): A Jinja2 environment object. Defaults to a
+        new FileSystemLoader environment for the "templates" directory.
+
+    Returns:
+        list[Message]: A list of Message objects containing the rendered email messages.
+    """
+    if env is None:
+        env = Environment(loader=FileSystemLoader("templates"))
     body_template = env.get_template("body.html")
     subject_template = env.get_template("subject.txt")
 

@@ -12,6 +12,10 @@ import colette.storage
 from .email import render_messages
 
 
+import configparser
+import os
+
+
 def email(path: PathLike, round: int = None, preview=True):
     storage = colette.storage.FileStorage(path)
     people = storage.load_people()
@@ -22,8 +26,19 @@ def email(path: PathLike, round: int = None, preview=True):
         round = len(previous_solutions)
         print(f"Sending emails for {round=}...")
 
+    # check for email.ini and parse it
+    if os.path.exists("email.ini"):
+        from .email.smtp import SmtpClient
+
+        config = configparser.ConfigParser()
+        config.read("email.ini")
+        send_email = SmtpClient(config).send_email
+
     # TODO detect email client
-    # TODO: reimplement smtp client
+
+    # if email.ini exists, use that
+    # if not, try to detect email client
+    # if not, ask user to select email client
 
     if sys.platform == "darwin":
         from colette.email.outlook_macos import send_email
