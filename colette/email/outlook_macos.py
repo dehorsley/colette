@@ -1,14 +1,14 @@
 # Sends an email using Microsoft Outlook on macOS.
 from .base import Message
-from appscript import app, k
+from appscript import app, k, ApplicationNotFoundError
 
 
-def check_installed() -> bool:
+def outlook_installed() -> bool:
     """Checks if Microsoft Outlook is installed on the system."""
     try:
         app("Microsoft Outlook")
         return True
-    except:
+    except ApplicationNotFoundError:
         return False
 
 
@@ -27,7 +27,7 @@ def send_email(msgs: list[Message], preview=False):
             },
         )
 
-        for recipient in msg.recipients:
+        for recipient in msg.to:
             outlook_msg.make(
                 new=k.recipient,
                 with_properties={
