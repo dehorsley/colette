@@ -2,7 +2,7 @@ from colette.email.base import Message, Recipient
 from colette.email.mail_macos import send_email, mail_installed
 from unittest.mock import MagicMock, patch, call
 
-from appscript import k
+from appscript import k, ApplicationNotFoundError
 
 
 def test_send_email():
@@ -64,5 +64,8 @@ def test_mail_installed():
     assert mail_installed() is True
 
     # Test that mail_installed returns False when Mail.app is not installed
-    with patch("colette.email.mail_macos.app", side_effect=Exception()):
+    with patch(
+        "colette.email.mail_macos.app",
+        side_effect=ApplicationNotFoundError("Mail"),
+    ):
         assert mail_installed() is False

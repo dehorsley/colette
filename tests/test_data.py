@@ -1,5 +1,4 @@
 import datetime
-from pathlib import Path
 
 import pytest
 import tomlkit
@@ -8,10 +7,11 @@ from textwrap import dedent
 from colette.models import RoundConfig, Solution, Pair, Person
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def people():
     people_csv_data = dedent(
-        """name,organisation,email,active
+        """\
+    name,organisation,email,active
     Alice,someplace,alice@example.com,True
     Bob,anotherplace,bob@example.com,True
     Charlie,someplace,charlie@example.com,True
@@ -184,7 +184,7 @@ def test_solution_loads(people):
     assert Pair(eve, frank) in pairs
 
 
-def test_loads_with_costs(people):
+def test_round_loads_with_costs(people):
     config = RoundConfig.loads(
         tomlkit.dumps(
             {
@@ -227,7 +227,7 @@ def test_loads_with_costs(people):
     assert config.cost_of_pairing_previous_partner_n == 15
 
 
-def test_loads_with_invalid_costs(people):
+def test_round_loads_with_invalid_costs(people):
     with pytest.raises(TypeError):
         RoundConfig.loads(
             tomlkit.dumps(
@@ -247,54 +247,31 @@ def test_loads_with_invalid_costs(people):
         )
 
 
-def test_people_loads_invalid_header():
-    people_csv_data = """name,organisation,email,active
+@pytest.fixture
+def people_csv_data():
+    return dedent(
+        """\
+    name,organisation,email,active
     Alice,someplace,alice@example.com,True
     Bob,anotherplace,bob@example.com,True
     Charlie,someplace,charlie@example.com,True
     Dave,someplace,dave@example.com,True
     Eve,someother,Eve@example.com,True
-    Frank,anotherplace,frank@blag.com,True
-    """
+    Frank,anotherplace,frank@blag.com,True"""
+    )
 
+
+def test_people_loads_invalid_header(people_csv_data):
     # Change the header to an invalid one
     people_csv_data = people_csv_data.replace(
-        "name,organisation,email,active", "name,organisation,active,email"
+        "name,organisation,email,active", "name,organisation,active,blag"
     )
 
-    with pytest.raises(ValueError):
+    with pytest.raises(KeyError):
         Person.loads(people_csv_data)
 
 
-def test_loads_invalid_csv():
-    people_csv_data = """name,organisation,email,active
-    Alice,someplace,alice@example.com,True
-    Bob,anotherplace,bob@example.com,True
-    Charlie,someplace,charlie@example.com,True
-    Dave,someplace,dave@example.com,True
-    Eve,someother,Eve@example.com,True
-    Frank,anotherplace,frank@blag.com,True
-    """
-
-    # Remove the email field from one of the rows
-    people_csv_data = people_csv_data.replace(
-        "alice@example.com,True", "alice@example.com,True,"
-    )
-
-    with pytest.raises(ValueError):
-        Person.loads(people_csv_data)
-
-
-def test_loads_valid_csv():
-    people_csv_data = """name,organisation,email,active
-    Alice,someplace,alice@example.com,True
-    Bob,anotherplace,bob@example.com,True
-    Charlie,someplace,charlie@example.com,True
-    Dave,someplace,dave@example.com,True
-    Eve,someother,Eve@example.com,True
-    Frank,anotherplace,frank@blag.com,True
-    """
-
+def test_people_loads_valid_csv(people_csv_data):
     people = Person.loads(people_csv_data)
 
     assert len(people) == 6
@@ -306,7 +283,7 @@ def test_loads_valid_csv():
     assert "Frank" in people
 
 
-def test_loads_empty_csv():
+def test_people_loads_empty_csv():
     people_csv_data = "name,organisation,email,active"
 
     people = Person.loads(people_csv_data)
@@ -314,7 +291,21 @@ def test_loads_empty_csv():
     assert len(people) == 0
 
 
-def test_loads_csv(people):
+def test_people_loads_invalid_csv():
+    people_csv_data = """name,organisation,email,active
+    Alice,someplace,alice@example.com,True
+    Bob,anotherplace,bob@example.com,True
+    ,someplace,charlie@example.com,True
+    Dave,someplace,dave@example.com,True
+    Eve,someother,Eve@example.com,True
+    Frank,anotherplace,frank@blag.com,True
+    """
+
+    with pytest.raises(ValueError):
+        Person.loads(people_csv_data)
+
+
+def test_solution_loads_csv(people):
     csv_data = dedent(
         """\
         primary,secondary
