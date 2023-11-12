@@ -1,8 +1,10 @@
+import io
 import csv
-from os import PathLike
-from copy import copy
 import datetime
-from dataclasses import dataclass, replace, field
+from copy import copy
+from dataclasses import dataclass, field, replace
+from os import PathLike
+from typing import Union, TextIO
 
 import tomlkit
 
@@ -20,38 +22,63 @@ class Person:
         Example CSV file:
 
         name,organisation,active,email
-        Alice,Org1,True,
-        Bob,Org2,True,
-        Charlie,Org1,True,
+        Alice,Org1,True,alice@blag.com
+        Bob,Org2,True,bob@org2.com
+        Charlie,Org1,True,charlie@org1.com
         """
 
-        people = {}
-        lines = s.strip().split("\n")
-
-        # check the first line is the header
-        if lines[0] != "name,organisation,email,active":
-            raise ValueError(
-                "people.csv must have the following header:\n"
-                "name,organisation,email,active"
-            )
-
-        for line in lines[1:]:
-            name, org, email, active = line.split(",")
-            name = name.strip()
-            active = active.strip().lower() in {"true", "yes", "1"}
-            people[name] = Person(
-                name=name,
-                email=email,
-                organisation=org,
-                active=active,
-            )
-
-        return people
+        f = io.StringIO(s)
+        return Person.load(f)
 
     @staticmethod
-    def load(path: PathLike) -> dict[str, "Person"]:
-        with open(path) as f:
-            return Person.loads(f.read())
+    def load(f: TextIO) -> dict[str, "Person"]:
+        """
+        Load a dictionary of Person objects from a CSV file.
+
+        Args:
+            f (TextIO): A file-like object containing CSV data. Must have the
+            following columns:
+
+                    name,organisation,active,email
+
+        Returns:
+            dict[str, Person]: A dictionary of Person objects, keyed by name.
+
+        Raises:
+            KeyError: If the CSV file is missing any of the required columns.
+        """
+        people = {}
+
+        reader = csv.DictReader(f, restval="")
+
+        try:
+            for i, row in enumerate(reader):
+                name = row["name"]
+                if name in people:
+                    raise ValueError(f"Duplicate name {name} on line {i + 2}")
+
+                if name == "":
+                    raise ValueError(f"Missing name on line {i + 2}")
+
+                org = row["organisation"]
+                email = row["email"]
+                active = row["active"].lower() in {"true", "yes", "1", ""}
+
+                people[name] = Person(
+                    name=name,
+                    email=email,
+                    organisation=org,
+                    active=active,
+                )
+
+        except KeyError as e:
+            raise KeyError(
+                f"people.csv missing field '{e.args[0]}', "
+                "must have at least the following fields:\n"
+                "name, organisation, email, active"
+            ) from e
+
+        return people
 
 
 @dataclass(frozen=True, order=True)
@@ -92,6 +119,9 @@ class RoundConfig:
     people: dict[str, Person]
     date: datetime.date = field(default_factory=datetime.date.today)
     overrides: Overrides = field(default_factory=Overrides)
+    removals: list[tuple[Person, Union[int, datetime.date]]] = field(
+        default_factory=list
+    )
     notes: str = field(default="")
 
     # Cost of pairing people of the same type (primary/secondary) together,
@@ -112,9 +142,9 @@ class RoundConfig:
     # Should be a big number. Really don't want to pair people together *just*
     # after they paired
     cost_of_pairing_previous_partner_one_round_ago: int = field(default=1_000_000)
+
     # Cost of pairing players that were previously paired between 2 to N rounds
     # ago
-
     cost_of_pairing_previous_partner_two_to_n_round_ago: int = field(default=50)
 
     # Number of round before a previous pairing doesn't matter anymore.
