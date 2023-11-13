@@ -1,25 +1,20 @@
-import sys
 import argparse
+import configparser
+import os
+import sys
+import warnings
+from inspect import signature
 from os import PathLike
 from textwrap import dedent
-import warnings
 
-from inspect import signature
-
-from colette import solver
-import colette.storage
-
+from . import solver, storage
 from .email import render_messages
 
 
-import configparser
-import os
-
-
 def email(path: PathLike, round: int = None, preview=True):
-    storage = colette.storage.FileStorage(path)
-    people = storage.load_people()
-    previous_solutions = storage.load_solutions(people)
+    stor = storage.FileStorage(path)
+    people = stor.load_people()
+    previous_solutions = stor.load_solutions(people)
 
     if round is None:
         # infer round from existing solution files
@@ -48,7 +43,7 @@ def email(path: PathLike, round: int = None, preview=True):
         raise RuntimeError(f"Unsupported platform {sys.platform}")
 
     solution = previous_solutions[round - 1]
-    round_config = storage.load_round_config(round, people)
+    round_config = stor.load_round_config(round, people)
     msgs = render_messages(solution, round_config)
     send_email(msgs, preview=preview)
 
@@ -58,22 +53,20 @@ def new_round_config(path: PathLike):
 
 
 def new_round_from_path(path: PathLike):
-    storage = colette.storage.FileStorage(path)
-    people = storage.load_people()
-    previous_rounds = storage.load_solutions(people)
+    stor = storage.FileStorage(path)
+    people = stor.load_people()
+    previous_rounds = stor.load_solutions(people)
 
     next_round = len(previous_rounds) + 1
 
     # If there is a round config for the next round, load that
     try:
-        round_config = storage.load_round_config(next_round, people)
+        round_config = stor.load_round_config(next_round, people)
     except FileNotFoundError as e:
-        # make warning
-
         warnings.warn(
             dedent(
                 f"""\
-            No round config for round {next_round}. Creating a basic config at {e.filename}.
+            No round config for round {next_round}. Creating a basic config at {e.filename}...
 
             If you wish to customise this round, please edit this file and delete
             the solution file at {e.filename.replace("round", "solution")} 
@@ -87,11 +80,11 @@ def new_round_from_path(path: PathLike):
             overrides={},
         )
 
-        storage.store_round_config(round_config)
+        stor.store_round_config(round_config)
 
     solution = solver.solve_round(round_config, previous_rounds=previous_rounds)
-    storage.store_solution(solution)
-    storage.store_solution(solution, type="csv")
+    stor.store_solution(solution)
+    stor.store_solution(solution, type="csv")
 
 
 def main():
