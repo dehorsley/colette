@@ -261,7 +261,7 @@ assign roles in the pairings.
 
 ## Running the roulette
 
-Once you have the files, your ready to run the roulette. In the command line,
+Once you have the files, your ready to create a round. In the command line,
 
 
     colette new
@@ -310,7 +310,7 @@ As people let you know they are going to be away, add them to the `remove`
 section. This can make things easier when you come to generate the round.
 
 
-## Handling odd numbers
+### Handling odd numbers
 If you have an odd number of people, Colette will have to remove someone from
 the round. 
 
