@@ -1,8 +1,0 @@
-G'day {{organiser.name}},
-
-This round of coffee roulette you've been paired with {{buyer.name}} from {{buyer.organisation}}. 
-
-This month your job is to pick a venue and let {{buyer.name}} know about it on {{buyer.email}}, they will buy the coffee!
-
-Have fun!
-Coffee Roulette
