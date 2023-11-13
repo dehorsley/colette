@@ -159,9 +159,10 @@ in each round, so that each player has a turn at being the "organiser" and the
 ### email.ini
 
 If using SMTP email, you will need to create an `email.ini` file.
+If you want to use Outlook or Mail.app, you remove this file.
 This needs the following format:
 
-```toml
+```ini
 [email]
 from = Joe Bloggs <email.name@emailprovider.com>
 server = smtp.emailprovider.com
