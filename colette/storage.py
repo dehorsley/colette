@@ -36,6 +36,18 @@ class Storage(ABC):
     def load_people(self) -> dict[str, Person]:
         raise NotImplementedError()
 
+    @abstractmethod
+    def num_rounds(self) -> int:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def num_people(self) -> int:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def previous_solution(self) -> Solution:
+        raise NotImplementedError()
+
 
 class FileStorage(Storage):
     def __init__(self, path: PathLike):
