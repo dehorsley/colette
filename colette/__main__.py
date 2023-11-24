@@ -2,10 +2,11 @@ import argparse
 import configparser
 import os
 import sys
-import warnings
 from inspect import signature
 from os import PathLike
 from textwrap import dedent
+
+import tomlkit
 
 from . import __version__, solver, storage
 from .email import render_messages
@@ -48,43 +49,98 @@ def email(path: PathLike, round: int = None, preview=True):
     send_email(msgs, preview=preview)
 
 
-def new_round_config(path: PathLike):
-    pass
+def new_round_config(path: PathLike, date: str = None):
+    if date is None:
+        date = input("Date of next round (YYYY-MM-DD): ")
+
+    date = tomlkit.date(date.strip())
+
+    store = storage.FileStorage(path)
+    people = store.load_people()
+    previous_rounds = store.load_solutions(people)
+
+    last_round = len(previous_rounds)
+    new_round = last_round + 1
+
+    previous_round_config_path = store.path / f"round_{last_round:06d}.toml"
+
+    if previous_round_config_path.exists():
+        new_round_config = tomlkit.parse(previous_round_config_path.read_text())
+
+        new_round_config["number"] = new_round
+        new_round_config["date"] = date
+
+        # remove [[remove]] blocks whose 'until' date or round has passed
+        for i, remove_block in enumerate(new_round_config["remove"]):
+            name = remove_block["name"]
+            if isinstance(remove_block["until"], tomlkit.items.Date):
+                if remove_block["until"] <= date:
+                    print(f"Adding {name} back into the pool")
+                    del new_round_config["remove"][i]
+                continue
+
+            if isinstance(remove_block["until"], tomlkit.items.Integer):
+                if remove_block["until"] <= new_round:
+                    print(f"Adding {name} back into the pool")
+                    del new_round_config["remove"][i]
+                continue
+
+            # error if neither date nor round
+            raise ValueError(
+                f"Invalid 'until' value for remove block {i}: {remove_block['until']}"
+                f"of type {type(remove_block['until'])}"
+            )
+
+    else:
+        new_round_config = tomlkit.document()
+
+        new_round_config["number"] = new_round
+        new_round_config["date"] = date
+
+    # save new round config
+    new_round_config_path = store.path / f"round_{new_round:06d}.toml"
+    if new_round_config_path.exists():
+        raise RuntimeError(f"Round config {new_round_config_path} already exists")
+    new_round_config_path.write_text(tomlkit.dumps(new_round_config))
+
+    print(f"Created round config for round {new_round}")
 
 
-def new_round_from_path(path: PathLike):
-    stor = storage.FileStorage(path)
-    people = stor.load_people()
-    previous_rounds = stor.load_solutions(people)
+def pair_from_path(path: PathLike):
+    store = storage.FileStorage(path)
+    people = store.load_people()
+    previous_rounds = store.load_solutions(people)
 
     next_round = len(previous_rounds) + 1
 
     # If there is a round config for the next round, load that
     try:
-        round_config = stor.load_round_config(next_round, people)
+        round_config = store.load_round_config(next_round, people)
     except FileNotFoundError as e:
-        warnings.warn(
-            dedent(
-                f"""\
-            No round config for round {next_round}. Creating a basic config at {e.filename}...
-
-            If you wish to customise this round, please edit this file and delete
-            the solution file at {e.filename.replace("round", "solution")} 
-            """
-            )
-        ),
-
-        round_config = solver.RoundConfig(
-            number=next_round,
-            people=people,
-            overrides={},
-        )
-
-        stor.store_round_config(round_config)
+        raise FileNotFoundError(
+            f"No round config found for round {next_round}. Create one with `colette new`"
+        ) from e
 
     solution = solver.solve_round(round_config, previous_rounds=previous_rounds)
-    stor.store_solution(solution)
-    stor.store_solution(solution, type="csv")
+
+    print(f"Found pairing for round {next_round}!")
+
+    if solution.cost > 0:
+        print(f"Total cost: {solution.cost}")
+        ## print caveats
+        for pair, caveats in solution.caviats.items():
+            if len(caveats) == 0:
+                continue
+
+            if pair.primary == pair.secondary:
+                print(f"{pair.primary.name}")
+            else:
+                print(f"{pair.primary.name} and {pair.secondary.name}")
+            for caveat in caveats:
+                print(f"  - {caveat}")
+
+    store.store_solution(solution)
+    store.store_solution(solution, type="csv")
 
 
 def main():
@@ -119,7 +175,7 @@ def main():
             """
         ),
     )
-    new_parser.set_defaults(func=new_round_from_path)
+    new_parser.set_defaults(func=new_round_config)
 
     pair_parser = subparsers.add_parser(
         "pair",
@@ -132,7 +188,7 @@ def main():
             """
         ),
     )
-    pair_parser.set_defaults(func=new_round_from_path)
+    pair_parser.set_defaults(func=pair_from_path)
 
     email_parser = subparsers.add_parser(
         "email",
