@@ -175,6 +175,10 @@ def main():
             """
         ),
     )
+    new_parser.add_argument(
+        "date",
+        help="date of the next round (YYYY-MM-DD)",
+    )
     new_parser.set_defaults(func=new_round_config)
 
     pair_parser = subparsers.add_parser(
