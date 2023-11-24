@@ -1,11 +1,22 @@
+import sys
+from unittest.mock import MagicMock, call, patch
+
+import pytest
+
 from colette.email.base import Message, Recipient
-from colette.email.mail_macos import send_email, mail_installed
-from unittest.mock import MagicMock, patch, call
 
-from appscript import k, ApplicationNotFoundError
+pytestmark = pytest.mark.skipif(
+    sys.platform != "darwin",
+    reason="Mail.app is only available on macOS",
+)
 
 
+@pytestmark
 def test_send_email():
+    from appscript import k
+
+    from colette.email.mail_macos import send_email
+
     # Create a mock Message object
     msg = Message(
         subject="Test Subject",
@@ -59,7 +70,12 @@ def test_send_email():
     mail_mock.send.assert_called_once_with()
 
 
+@pytestmark
 def test_mail_installed():
+    from appscript import ApplicationNotFoundError
+
+    from colette.email.mail_macos import mail_installed
+
     # Test that mail_installed returns True when Mail.app is installed
     assert mail_installed() is True
 

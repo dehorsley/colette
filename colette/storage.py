@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
-from .models import RoundConfig, Solution, Person
-from pathlib import Path
 from os import PathLike
+from pathlib import Path
 from textwrap import dedent
+
+from .models import Person, RoundConfig, Solution
 
 
 class Storage(ABC):
@@ -124,4 +125,17 @@ class FileStorage(Storage):
                 )
             )
 
-        return Person.load(path)
+        with path.open() as f:
+            people = Person.load(f)
+
+        return people
+
+    def num_rounds(self) -> int:
+        raise NotImplementedError()
+
+    def num_people(self) -> int:
+        people = self.load_people()
+        return len(people)
+
+    def previous_solution(self) -> Solution:
+        raise NotImplementedError()
