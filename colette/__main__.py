@@ -7,7 +7,7 @@ from inspect import signature
 from os import PathLike
 from textwrap import dedent
 
-from . import solver, storage
+from . import __version__, solver, storage
 from .email import render_messages
 
 
@@ -160,6 +160,12 @@ def main():
     )
 
     email_parser.set_defaults(func=email)
+
+    version_parser = subparsers.add_parser(
+        "version",
+        help="print the version number",
+    )
+    version_parser.set_defaults(func=lambda: print(__version__))
 
     args = parser.parse_args()
     if "func" not in vars(args):
