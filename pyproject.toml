@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "colette"
-version = "0.1.4"
+version = "0.2.0"
 description = "Manage rounds of coffee roulette"
 authors = ["David Horsley <david.e.horsley@gmail.com>"]
 license = "AGPL3"
@@ -9,7 +9,7 @@ homepage = "https://github.com/dehorsley/colette"
 repository = "https://github.com/dehorsley/colette.git"
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.10"
 mip = "^1.13"
 Jinja2 = "^3.1"
 tomlkit = "^0.12.1"
