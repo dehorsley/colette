@@ -1,4 +1,5 @@
 import win32com.client
+
 from .base import Message
 
 
@@ -10,7 +11,8 @@ def send_email(msgs: list[Message], preview=False):
     for msg in msgs:
         omsg = outlook.CreateItem(0)
         omsg.Subject = msg.subject
-        omsg.Body = msg.body
+        omsg.BodyFormat = 2
+        omsg.HTMLBody = msg.body
         omsg.To = ";".join([f"{r.name} <{r.email}>" for r in msg.to])
         outlook_msgs.append(omsg)
 

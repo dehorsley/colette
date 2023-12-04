@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "colette"
-version = "0.2.1"
+version = "0.2.2"
 description = "Manage rounds of coffee roulette"
 authors = ["David Horsley <david.e.horsley@gmail.com>"]
 license = "AGPL3"
