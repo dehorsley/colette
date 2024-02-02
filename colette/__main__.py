@@ -70,29 +70,31 @@ def new_round_config(path: PathLike, date: str = None):
         new_round_config["number"] = new_round
         new_round_config["date"] = date
 
-        new_remove_blocks = []
-
         # remove [[remove]] blocks whose 'until' date or round has passed
-        for remove_block in new_round_config.get("remove", []):
+        n_removed = 0
+        for i, remove_block in list(enumerate(new_round_config["remove"])):
+            # we do it this way to preserve comments
+
             name = remove_block["name"]
             if isinstance(remove_block["until"], tomlkit.items.Date):
                 if remove_block["until"] < date:
                     print(f"Adding {name} back into the pool")
-                    continue
-                new_remove_blocks.append(remove_block)
+                    del new_round_config["remove"][i - n_removed]
+                    n_removed += 1
+                continue
 
             if isinstance(remove_block["until"], tomlkit.items.Integer):
                 if remove_block["until"] < new_round:
                     print(f"Adding {name} back into the pool")
-                    continue
-                new_remove_blocks.append(remove_block)
+                    del new_round_config["remove"][i - n_removed]
+                    n_removed += 1
+                continue
 
             # error if neither date nor round
             raise ValueError(
                 f"Invalid 'until' value for remove block {i}: {remove_block['until']}"
                 f"of type {type(remove_block['until'])}"
             )
-        new_round_config["remove"] = new_remove_blocks
 
     else:
         new_round_config = tomlkit.document()
@@ -167,7 +169,7 @@ def main():
         description=dedent(
             """\
             create a new round configuration. If a previous round configuration
-            (ie round_nnnnn.toml) exists, it will be copied and updated with the
+            (ie round_nnnnnn.toml) exists, it will be copied and updated with the
             following:
 
             - round number will be incremented
