@@ -239,7 +239,7 @@ Once you have the files, your ready to create a round. In the command line,
 
     colette new
 
-> **Note**
+> [!NOTE]
 > 
 > You may need to add the path pip installed colette too to your PATH
 > environment variable.
