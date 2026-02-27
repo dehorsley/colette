@@ -1,29 +1,43 @@
-[tool.poetry]
+[project]
 name = "colette"
 version = "0.2.5-dev"
 description = "Manage rounds of coffee roulette"
-authors = ["David Horsley <david.e.horsley@gmail.com>"]
-license = "AGPL3"
+authors = [{ name = "David Horsley", email = "david.e.horsley@gmail.com" }]
+requires-python = ">=3.10,<4"
 readme = "README.md"
-homepage = "https://github.com/dehorsley/colette"
-repository = "https://github.com/dehorsley/colette.git"
+license = "AGPL-3.0-or-later"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+dependencies = [
+    "mip>=1.13,<2",
+    "Jinja2>=3.1,<4",
+    "tomlkit>=0.12.1,<0.13",
+    "appscript>=1.2.2,<2 ; sys_platform == 'darwin'",
+    "pywin32>=306,<307 ; sys_platform == 'win32'",
+]
 
-[tool.poetry.dependencies]
-python = "^3.10"
-mip = "^1.13"
-Jinja2 = "^3.1"
-tomlkit = "^0.12.1"
-appscript = { version = "^1.2.2", platform = "darwin" }
-pywin32 = { version = "^306", platform = "win32" }
+[project.urls]
+Homepage = "https://github.com/dehorsley/colette"
+Repository = "https://github.com/dehorsley/colette.git"
 
-[tool.poetry.dev-dependencies]
+[project.scripts]
+colette = "colette.__main__:main"
 
-[tool.poetry.group.dev.dependencies]
-pytest = "^7.4.3"
+[dependency-groups]
+dev = ["pytest>=7.4.3,<8"]
+
+[tool.uv]
+default-groups = "all"
+
+[tool.uv.build-backend]
+module-root = ""
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.poetry.scripts]
-colette = "colette.__main__:main"
+requires = ["uv_build>=0.9.3,<0.10.0"]
+build-backend = "uv_build"
