@@ -1,7 +1,7 @@
 import warnings
 from dataclasses import dataclass, field
+
 from jinja2 import Environment, FileSystemLoader
-from typing import Optional
 
 from ..models import RoundConfig, Solution
 
@@ -25,7 +25,7 @@ class Message:
 def render_messages(
     solution: Solution,
     round_config: RoundConfig,
-    env: Optional[Environment] = None,
+    env: Environment | None = None,
 ) -> list[Message]:
     """
     Renders email messages for each pair in the solution.

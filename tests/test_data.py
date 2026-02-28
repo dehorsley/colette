@@ -1,10 +1,10 @@
 import datetime
+from textwrap import dedent
 
 import pytest
 import tomlkit
-from textwrap import dedent
 
-from colette.models import RoundConfig, Solution, Pair, Person
+from colette.models import Pair, Person, RoundConfig, Solution
 
 
 @pytest.fixture()
@@ -74,7 +74,7 @@ def test_loads(people: dict[str, Person]):
     s = """
     number = 2
     date = 2022-01-01
-    
+
     [[remove]]
     name = "Alice"
     round = 3

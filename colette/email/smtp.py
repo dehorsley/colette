@@ -1,6 +1,6 @@
+import smtplib
 from configparser import ConfigParser
 from email.message import EmailMessage
-import smtplib
 
 from .base import Message
 

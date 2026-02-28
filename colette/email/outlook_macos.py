@@ -1,6 +1,7 @@
 # Sends an email using Microsoft Outlook on macOS.
+from appscript import ApplicationNotFoundError, app, k
+
 from .base import Message
-from appscript import app, k, ApplicationNotFoundError
 
 
 def outlook_installed() -> bool:

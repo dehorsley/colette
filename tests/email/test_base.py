@@ -1,9 +1,11 @@
-from colette.email import render_messages, Recipient
-from colette.solver import RoundConfig, Pair, Person, Solution
-from jinja2 import TemplateNotFound, Environment, DictLoader
-from unittest.mock import patch
 from textwrap import dedent
+from unittest.mock import patch
+
 import pytest
+from jinja2 import DictLoader, Environment, TemplateNotFound
+
+from colette.email import Recipient, render_messages
+from colette.solver import Pair, Person, RoundConfig, Solution
 
 
 @pytest.fixture

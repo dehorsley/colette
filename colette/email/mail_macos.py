@@ -1,7 +1,9 @@
 # Sends an email using Mail.app on macOS.
-from .base import Message
-from appscript import app, k, ApplicationNotFoundError
 from warnings import warn
+
+from appscript import ApplicationNotFoundError, app, k
+
+from .base import Message
 
 
 def mail_installed() -> bool:

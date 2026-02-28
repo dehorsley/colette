@@ -1,5 +1,6 @@
 from unittest import TestCase
-from colette.solver import solve_round, RoundConfig, Pair, Person, Solution
+
+from colette.solver import Pair, Person, RoundConfig, Solution, solve_round
 
 
 class TestSolver(TestCase):

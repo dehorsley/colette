@@ -205,7 +205,7 @@ def main():
         description=dedent(
             """\
         email the participants of the last round — or the round specified —
-        their partner and role.  
+        their partner and role.
         """
         ),
     )

@@ -1,7 +1,7 @@
 # Colette: Coffee Roulette — pair with a random person for coffee
 
 Colette is a command-line tool for organising pairings withing an organisation
-or community. 
+or community.
 
 Aimed at organisations that want to encourage cross-team
 collaboration, or communities that want to encourage networking, it can be used
@@ -37,10 +37,10 @@ Check the installation by running the following command:
 
 This should print the help message.
 
-## Getting started 
+## Getting started
 
 Once installed, you will need to create a working directory for your coffee
-roulette. 
+roulette.
 
 The directory should contain the following files:
 
@@ -65,25 +65,25 @@ Each participating (or previously participating) player should be listed on an
 individual row with the following comma separated values:
 
 -  `name` &mdash;  the name of the player and is the only field that must non-empty
- 
--  `organisation` &mdash; whatever grouping sense for your programme. Colette 
+
+-  `organisation` &mdash; whatever grouping sense for your programme. Colette
     will try to avoid pairing people from the same "organisation" value. This can
     be left blank if you don't want to use this functionality.
 
 -  `email` &mdash; populated with the email address of each player
 if you want to use the email functionality.
 
-- `active` &mdash; 
+- `active` &mdash;
 Used mark players as no longer participating in the
 roulette. Note you can also use round configuration files to temporarily remove
 players from a round. (Discussed below.) Must have one of the following values:
 
   - `1`, `true` or empty == active,
-  - `0` or `false` == inactive. 
+  - `0` or `false` == inactive.
 
 Other columns in the CSV are ignored, and can have any format.
 
-### Templates 
+### Templates
 
 If you want to use the email functionality, you will need to create
 templates for the email subject and body. These are plain text files, use
@@ -147,7 +147,7 @@ password = thepasswordfortheaccount
 
 ### Round configuration files (`round_*.toml`) (generated)
 
-Colette will generate a `round_*.toml` file for each round. 
+Colette will generate a `round_*.toml` file for each round.
 
 At a minimum, this file will need to contain the round `number` and a nominal `date`
 for the round &mdash; with Colette will used to determine the availabiliy for participants. For example:
@@ -176,7 +176,7 @@ until = 29
 ## Or by date:
 [[remove]]
 name = "Joe Bloggs"
-until = 2044-01-01 
+until = 2044-01-01
 # Joe is in jail for the next 20 years
 ```
 
@@ -226,7 +226,7 @@ a semi-colon separated list of warnings about the pairing. For example:
     Jane Doe,Thomas Tank,paired before;same organisation
 
 If you want to import an existing solution, you can create a `solution_*.csv`
-file manually. The only requirement is that the header is present, and the 
+file manually. The only requirement is that the header is present, and the
 `primary` and `secondary` columns are populated with the names of the players.
 
 The ordering of `primary` and `secondary` are not important if you don't want to
@@ -240,7 +240,7 @@ Once you have the files, your ready to create a round. In the command line,
     colette new
 
 > [!NOTE]
-> 
+>
 > You may need to add the path pip installed colette too to your PATH
 > environment variable.
 >
@@ -269,7 +269,7 @@ want to send the emails, you can add the `--no-preview` flag:
 
 
 Happy rouletting! Any problems with program itself, file an issue
-on the [Colette Github project](https://github.com/dehorsley/colette/issues). 
+on the [Colette Github project](https://github.com/dehorsley/colette/issues).
 
 
 ## Tips
@@ -277,7 +277,7 @@ on the [Colette Github project](https://github.com/dehorsley/colette/issues).
 ### Start a `round_*.toml` early
 
 It can be useful to start a `round_*.toml` file early, and use it to keep track
-of people who are going to be away. 
+of people who are going to be away.
 
 As people let you know they are going to be away, add them to the `remove`
 section. This can make things easier when you come to generate the round.
@@ -285,7 +285,7 @@ section. This can make things easier when you come to generate the round.
 
 ### Handling odd numbers
 If you have an odd number of people, Colette will have to remove someone from
-the round. 
+the round.
 
 This is flagged by marking them as pairing with themselves. If you would
 like to prioritise who is removed, for example you the organiser, you can add an
@@ -297,7 +297,7 @@ pair = ["organiser", "organiser"]
 weight = -900
 ```
 
-Overrides are additive and the default weight for removing a player is 1000. 
+Overrides are additive and the default weight for removing a player is 1000.
 So the net weight for removing the organiser will be 100.
 
 
@@ -305,7 +305,7 @@ So the net weight for removing the organiser will be 100.
 
 If you have an existing solution, you can import it by creating
 `solution_*.csv` files in the data directory (eg.
-    coffee_roulette/solution_000001.csv, 
+    coffee_roulette/solution_000001.csv,
     coffee_roulette/solution_000002.csv ...
 ). The only requirement is that the
 header is present, and the `primary` and `secondary` columns are populated with
@@ -322,7 +322,7 @@ instead of the old `organiser.template`, `buyer.template` and
 You will also need to update your old solution files. The `organiser` and
 `buyer` names are now `primary` and `secondary` in the solution files. You will
 need to change your templates to reflect this. You can do so with the following
-`sed` command (backup first!) 
+`sed` command (backup first!)
 
     sed -i 's/organiser/primary/g' solution_*.csv
     sed -i 's/buyer/secondary/g' solution_*.csv

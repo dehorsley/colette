@@ -1,10 +1,10 @@
-import io
 import csv
 import datetime
+import io
 from copy import copy
 from dataclasses import dataclass, field, replace
 from os import PathLike
-from typing import Union, TextIO
+from typing import TextIO
 
 import tomlkit
 
@@ -119,9 +119,7 @@ class RoundConfig:
     people: dict[str, Person]
     date: datetime.date = field(default_factory=datetime.date.today)
     overrides: Overrides = field(default_factory=Overrides)
-    removals: list[tuple[Person, Union[int, datetime.date]]] = field(
-        default_factory=list
-    )
+    removals: list[tuple[Person, int | datetime.date]] = field(default_factory=list)
     notes: str = field(default="")
 
     # Cost of pairing people of the same type (primary/secondary) together,

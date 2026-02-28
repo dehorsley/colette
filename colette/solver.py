@@ -1,8 +1,9 @@
-from .models import Person, Pair, RoundConfig, Solution
 import random
-
 from itertools import chain
+
 import mip
+
+from .models import Pair, Person, RoundConfig, Solution
 
 
 def solve_round(config: RoundConfig, previous_rounds: list[Solution]) -> Solution:
@@ -111,9 +112,9 @@ def solve_round(config: RoundConfig, previous_rounds: list[Solution]) -> Solutio
                 elif n < config.cost_of_pairing_previous_partner_n:
                     cost += config.cost_of_pairing_previous_partner_two_to_n_round_ago
                     caviats[i, j].append(
-                        f"were paired less than {n+1} rounds ago"
+                        f"were paired less than {n + 1} rounds ago"
                         if i != j
-                        else f"was removed last less than {n+1} rounds ago"
+                        else f"was removed last less than {n + 1} rounds ago"
                     )
 
             if i == j:
