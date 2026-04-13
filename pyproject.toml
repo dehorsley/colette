@@ -30,7 +30,7 @@ Repository = "https://github.com/dehorsley/colette.git"
 colette = "colette.__main__:main"
 
 [dependency-groups]
-dev = ["pytest>=7.4.3,<8"]
+dev = ["pytest>=7.4.3,<10"]
 
 [tool.uv]
 default-groups = "all"
