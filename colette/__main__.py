@@ -72,7 +72,7 @@ def new_round_config(path: PathLike, date: str = None):
 
         # remove [[remove]] blocks whose 'until' date or round has passed
         n_removed = 0
-        for i, remove_block in list(enumerate(new_round_config["remove"])):
+        for i, remove_block in list(enumerate(new_round_config.get("remove", []))):
             # we do it this way to preserve comments
 
             name = remove_block["name"]
@@ -166,8 +166,7 @@ def main():
     new_parser = subparsers.add_parser(
         "new",
         help="create a new round configuration",
-        description=dedent(
-            """\
+        description=dedent("""\
             create a new round configuration. If a previous round configuration
             (ie round_nnnnnn.toml) exists, it will be copied and updated with the
             following:
@@ -177,8 +176,7 @@ def main():
 
             TIP: do this early and you can add [[remove]] blocks throughout the
             period between rounds as people go on leave, etc.
-            """
-        ),
+            """),
     )
     new_parser.add_argument(
         "date",
@@ -189,25 +187,21 @@ def main():
     pair_parser = subparsers.add_parser(
         "pair",
         help="create pairs for a round",
-        description=dedent(
-            """\
+        description=dedent("""\
             create pairs for a round. If no round is specified, the last round without a
             solution will be used. If no round config exists, a new one will
             be created and solved.
-            """
-        ),
+            """),
     )
     pair_parser.set_defaults(func=pair_from_path)
 
     email_parser = subparsers.add_parser(
         "email",
         help="email the participants of a round",
-        description=dedent(
-            """\
+        description=dedent("""\
         email the participants of the last round — or the round specified —
         their partner and role.
-        """
-        ),
+        """),
     )
     email_parser.add_argument(
         "--round",
