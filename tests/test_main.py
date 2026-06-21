@@ -37,6 +37,35 @@ def test_new_round_config_without_previous_remove_block(tmp_path):
     assert created_config["date"] == datetime.date(2026, 5, 8)
 
 
+def test_new_round_config_defaults_to_today(tmp_path):
+    # Regression test for #16
+    (tmp_path / "people.csv").write_text(dedent("""\
+            name,organisation,email,active
+            Alice,Org1,alice@example.com,True
+            Bob,Org2,bob@example.com,True
+            """))
+
+    (tmp_path / "solution_000001.toml").write_text(dedent("""\
+            cost = 0
+            round = 1
+
+            [[pair]]
+            primary = "Alice"
+            secondary = "Bob"
+            """))
+
+    (tmp_path / "round_000001.toml").write_text(dedent("""\
+            number = 1
+            date = 2026-05-01
+            """))
+
+    new_round_config(tmp_path)
+
+    created_config = tomlkit.parse((tmp_path / "round_000002.toml").read_text())
+    assert created_config["number"] == 2
+    assert created_config["date"] == datetime.date.today()
+
+
 def test_new_round_config_invalid_remove_until_raises_value_error(tmp_path):
     # Regression test for #20: an invalid 'until' value must raise a clear
     # ValueError, not blow up with a secondary exception (e.g. NameError) while

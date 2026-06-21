@@ -1,5 +1,6 @@
 import argparse
 import configparser
+import datetime
 import os
 import re
 import sys
@@ -69,7 +70,7 @@ def email(path: PathLike, round: int = None, preview=True):
 
 def new_round_config(path: PathLike, date: str = None):
     if date is None:
-        date = input("Date of next round (YYYY-MM-DD): ")
+        date = datetime.date.today().isoformat()
 
     date = tomlkit.date(date.strip())
 
@@ -203,7 +204,8 @@ def main():
     )
     new_parser.add_argument(
         "date",
-        help="date of the next round (YYYY-MM-DD)",
+        nargs="?",
+        help="date of the next round (YYYY-MM-DD); defaults to today",
     )
     new_parser.set_defaults(func=new_round_config)
 
