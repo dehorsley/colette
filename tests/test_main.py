@@ -4,7 +4,7 @@ from textwrap import dedent
 import pytest
 import tomlkit
 
-from colette.__main__ import new_round_config
+from colette.__main__ import _remove_block_line, new_round_config
 
 
 def test_new_round_config_without_previous_remove_block(tmp_path):
@@ -78,3 +78,49 @@ def test_new_round_config_invalid_remove_until_raises_value_error(tmp_path):
     message = str(excinfo.value)
     assert "Alice" in message
     assert "line 8" in message
+
+
+def test_remove_block_line_finds_nth_header():
+    source = dedent("""\
+            number = 1
+            date = 2026-05-01
+
+            [[remove]]
+            name = "Bob"
+            until = 99
+
+            [[remove]]
+            name = "Alice"
+            until = "soon"
+            """)
+    assert _remove_block_line(source, 0) == 4
+    assert _remove_block_line(source, 1) == 8
+
+
+def test_remove_block_line_handles_whitespace_in_header():
+    source = dedent("""\
+            [[ remove ]]
+              [[remove]]
+            """)
+    assert _remove_block_line(source, 0) == 1
+    assert _remove_block_line(source, 1) == 2
+
+
+def test_remove_block_line_ignores_similar_table_names():
+    source = dedent("""\
+            [[removed]]
+            name = "x"
+
+            [[remove]]
+            name = "Bob"
+            """)
+    assert _remove_block_line(source, 0) == 4
+
+
+def test_remove_block_line_returns_none_when_not_found():
+    source = dedent("""\
+            [[remove]]
+            name = "Bob"
+            """)
+    assert _remove_block_line(source, 1) is None
+    assert _remove_block_line("", 0) is None
