@@ -1,6 +1,7 @@
 import argparse
 import configparser
 import os
+import re
 import sys
 from inspect import signature
 from os import PathLike
@@ -10,6 +11,23 @@ import tomlkit
 
 from . import __version__, solver, storage
 from .email import render_messages
+
+_REMOVE_HEADER = re.compile(r"^\s*\[\[\s*remove\s*\]\]")
+
+
+def _remove_block_line(source: str, index: int) -> int | None:
+    """Return the 1-based line number of the ``index``-th ``[[remove]]`` block.
+
+    Returns ``None`` if it can't be located (e.g. an inline-table block), so
+    callers can fall back to reporting the block index.
+    """
+    seen = 0
+    for lineno, line in enumerate(source.splitlines(), start=1):
+        if _REMOVE_HEADER.match(line):
+            if seen == index:
+                return lineno
+            seen += 1
+    return None
 
 
 def email(path: PathLike, round: int = None, preview=True):
@@ -91,9 +109,14 @@ def new_round_config(path: PathLike, date: str = None):
                 continue
 
             # error if neither date nor round
+            until = remove_block["until"]
+            line = _remove_block_line(previous_round_config_path.read_text(), i)
+            location = f"on line {line}" if line is not None else f"at index {i}"
             raise ValueError(
-                f"Invalid 'until' value for remove block {i}: {remove_block['until']}"
-                f"of type {type(remove_block['until'])}"
+                f"Invalid 'until' value for remove block {name!r} {location} of "
+                f"{previous_round_config_path}: {until!r} is of type "
+                f"{type(until).__name__}; expected a date (YYYY-MM-DD) or an "
+                f"integer round number"
             )
 
     else:
