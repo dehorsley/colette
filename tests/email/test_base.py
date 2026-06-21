@@ -1,3 +1,4 @@
+import datetime
 from textwrap import dedent
 from unittest.mock import patch
 
@@ -21,6 +22,7 @@ def round_config():
     return RoundConfig(
         number=3,
         people=people,
+        date=datetime.date(2023, 11, 1),
         overrides=overrides,
     )
 
