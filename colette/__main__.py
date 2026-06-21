@@ -172,6 +172,12 @@ def pair_from_path(path: PathLike):
     store.store_solution(solution, type="csv")
 
 
+def serve(path: PathLike, host: str = "127.0.0.1", port: int = 8080, open_browser=True):
+    from .web import serve as serve_web
+
+    serve_web(path=path, host=host, port=port, open_browser=open_browser)
+
+
 def main():
     parser = argparse.ArgumentParser(
         "colette",
@@ -244,6 +250,34 @@ def main():
     )
 
     email_parser.set_defaults(func=email)
+
+    serve_parser = subparsers.add_parser(
+        "serve",
+        help="start the web GUI",
+        description=dedent("""\
+            start a local web GUI for managing people, rounds, pairings and
+            email previews. Operates on the same files as the other commands.
+            """),
+    )
+    serve_parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="host/interface to bind to (default 127.0.0.1)",
+    )
+    serve_parser.add_argument(
+        "--port",
+        type=int,
+        default=8080,
+        help="port to listen on (default 8080)",
+    )
+    serve_parser.add_argument(
+        "--no-browser",
+        dest="open_browser",
+        default=True,
+        action="store_false",
+        help="don't open a browser window on start",
+    )
+    serve_parser.set_defaults(func=serve)
 
     version_parser = subparsers.add_parser(
         "version",

@@ -80,6 +80,32 @@ class Person:
 
         return people
 
+    @staticmethod
+    def dumps_csv(people) -> str:
+        """Serialise an iterable of Person objects to a CSV string.
+
+        The output matches the format expected by :meth:`Person.load` with the
+        canonical column order ``name,organisation,email,active``.
+        """
+        buf = io.StringIO()
+        writer = csv.writer(buf, lineterminator="\n")
+        writer.writerow(["name", "organisation", "email", "active"])
+        for person in people:
+            writer.writerow(
+                [
+                    person.name,
+                    person.organisation,
+                    person.email,
+                    "TRUE" if person.active else "FALSE",
+                ]
+            )
+        return buf.getvalue()
+
+    @staticmethod
+    def dump_csv(path: PathLike, people):
+        with open(path, "w", newline="") as f:
+            f.write(Person.dumps_csv(people))
+
 
 @dataclass(frozen=True, order=True)
 class Pair:

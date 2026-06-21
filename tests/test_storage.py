@@ -66,3 +66,27 @@ def test_load_people(file_storage, tmp_path):
 def test_load_people_file_not_found(file_storage):
     with pytest.raises(FileNotFoundError):
         file_storage.load_people()
+
+
+def test_store_then_load_people_roundtrip(file_storage, people):
+    file_storage.store_people(people)
+    assert (file_storage.path / "people.csv").exists()
+
+    reloaded = file_storage.load_people()
+    assert reloaded == people
+    # active flags survive in both directions
+    assert reloaded["Alice"].active is True
+    assert reloaded["Bob"].active is False
+
+
+def test_store_people_roundtrip_with_special_characters(file_storage):
+    people = {
+        'Smith, "AJ"': Person(
+            name='Smith, "AJ"',
+            organisation="Sales, EU",
+            active=True,
+            email="aj@example.com",
+        ),
+    }
+    file_storage.store_people(people)
+    assert file_storage.load_people() == people

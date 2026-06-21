@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Colette — Coffee Roulette</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="cup" aria-hidden="true">&#9749;</span>
+        <span class="brand-name">Colette</span>
+        <span class="brand-tag">coffee roulette</span>
+      </div>
+      <div class="path" id="path-display" title="working directory"></div>
+    </header>
+
+    <nav class="tabs" id="tabs">
+      <button class="tab" data-view="overview">Overview</button>
+      <button class="tab" data-view="people">People</button>
+      <button class="tab" data-view="rounds">Rounds</button>
+      <button class="tab" data-view="email">Email</button>
+      <button class="tab" data-view="history">History</button>
+    </nav>
+
+    <main id="main" class="main"></main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

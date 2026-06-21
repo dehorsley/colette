@@ -271,6 +271,48 @@ want to send the emails, you can add the `--no-preview` flag:
 Happy rouletting! Any problems with program itself, file an issue
 on the [Colette Github project](https://github.com/dehorsley/colette/issues).
 
+## Web GUI
+
+If you'd rather click than type, Colette ships with a small local web
+interface. From your working directory run:
+
+    colette serve
+
+This starts a server on <http://127.0.0.1:8080> (and opens it in your browser)
+that reads and writes the same `people.csv`, `round_*.toml` and `solution_*.csv`
+files as the command line — so you can mix and match the two freely.
+
+You can point it at an empty (or not-yet-created) directory to start from
+scratch: the Overview shows a short "Getting started" checklist that walks you
+through adding people, optionally setting up email templates, and running the
+first round.
+
+From the GUI you can:
+
+- **People** — add, edit, activate/deactivate or remove participants, or paste a
+  whole list at once ("Import several at once").
+- **Rounds** — create the next round, set its date, temporarily remove people
+  (optionally "until" a round number or date), let someone "sit out" of an
+  odd-numbered round, nudge specific pairings together or apart, then generate
+  the pairings. On a generated round you can push any individual pair apart with
+  the "×" button to get a fresh draw.
+- **Email** — edit the subject/body templates with a live preview rendered from
+  example participants (no round needed); a sensible starter template is shown
+  for a new directory. You can also preview a generated round's real emails. The
+  web GUI never sends mail — use `colette email` for that.
+- **History** — look up who anyone has been paired with, on which rounds (and
+  dates), and see which pairings have repeated.
+
+Useful options:
+
+    colette serve --port 9000     # listen on a different port
+    colette serve --no-browser    # don't open a browser automatically
+    colette --path ./my-roulette serve
+
+The server binds to `127.0.0.1` (localhost) only and has no authentication, so
+it is intended to be run on your own machine. It uses only the Python standard
+library — no extra dependencies are required.
+
 
 ## Tips
 

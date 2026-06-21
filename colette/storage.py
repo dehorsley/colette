@@ -54,11 +54,17 @@ class FileStorage(Storage):
     def __init__(self, path: PathLike):
         self.path = Path(path)
 
+    def _ensure_dir(self):
+        """Create the working directory on first write (new directory case)."""
+        self.path.mkdir(parents=True, exist_ok=True)
+
     def store_round_config(self, round_config: RoundConfig):
+        self._ensure_dir()
         round_config_file = self.path / f"round_{round_config.number:06d}.toml"
         round_config.dump(round_config_file)
 
     def store_solution(self, solution: Solution, type="toml"):
+        self._ensure_dir()
         if type == "toml":
             solution_file = self.path / f"solution_{solution.round:06d}.toml"
             solution.dump(solution_file)
@@ -69,6 +75,7 @@ class FileStorage(Storage):
             raise ValueError(f"Unknown solution type {type}")
 
     def store_people(self, people: dict[str, Person]):
+        self._ensure_dir()
         path = self.path / "people.csv"
         Person.dump_csv(path, people.values())
 
