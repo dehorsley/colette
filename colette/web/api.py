@@ -79,6 +79,7 @@ def _solution_dict(solution: Solution, people: dict[str, Person]) -> dict:
     return {
         "round": solution.round,
         "cost": solution.cost,
+        "optimal": getattr(solution, "optimal", True),
         "pairs": [
             _pair_dict(p, people, solution.caviats.get(p, []))
             for p in pairs

@@ -30,19 +30,36 @@ function toast(message, isError = false) {
   );
 }
 
-async function api(path, { method = "GET", body } = {}) {
+async function api(path, { method = "GET", body, timeoutMs } = {}) {
   const opts = { method, headers: {} };
   if (body !== undefined) {
     opts.headers["Content-Type"] = "application/json";
     opts.body = JSON.stringify(body);
   }
-  const res = await fetch(path, opts);
-  const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
-  if (!res.ok) {
-    throw new Error((data && data.error) || `Request failed (${res.status})`);
+  let timer;
+  if (timeoutMs) {
+    const ctrl = new AbortController();
+    opts.signal = ctrl.signal;
+    timer = setTimeout(() => ctrl.abort(), timeoutMs);
   }
-  return data;
+  try {
+    const res = await fetch(path, opts);
+    const text = await res.text();
+    const data = text ? JSON.parse(text) : null;
+    if (!res.ok) {
+      throw new Error((data && data.error) || `Request failed (${res.status})`);
+    }
+    return data;
+  } catch (e) {
+    if (e.name === "AbortError") {
+      throw new Error(
+        "Request timed out — the server is still working; reload to check.",
+      );
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function loading() {
@@ -235,8 +252,13 @@ views.overview = async function () {
         const sol = await api("/api/rounds/solve", {
           method: "POST",
           body: {},
+          timeoutMs: SOLVE_TIMEOUT_MS,
         });
-        toast(`Generated ${sol.pairs.length} pairs for round ${sol.round}`);
+        toast(
+          `Generated ${sol.pairs.length} pairs for round ${sol.round}${
+            solvedNote(sol)
+          }`,
+        );
         gotoRound(sol.round);
       });
     },
@@ -271,6 +293,16 @@ async function withBusy(btn, fn) {
 // sizes but could take a moment for large pools. `busy` blocks overlapping
 // solves (e.g. a second "discourage" click) and a sticky message keeps the user
 // informed even if the triggering button has scrolled out of view.
+// Client-side backstop: the server caps the solve at ~30s, so anything beyond
+// this means something is genuinely wrong rather than just a slow solve.
+const SOLVE_TIMEOUT_MS = 60000;
+// Note appended when the solver hit its time limit before proving optimality.
+function solvedNote(sol) {
+  return sol && sol.optimal === false
+    ? " — time-limited, may not be optimal"
+    : "";
+}
+
 let busy = false;
 function showBusy(message) {
   busy = true;
@@ -769,8 +801,12 @@ async function showRound(n, { silent = false } = {}) {
 
   document.getElementById("solve")?.addEventListener("click", async (ev) => {
     await withSolve(ev.target, "Generating pairings…", async () => {
-      const sol = await api("/api/rounds/solve", { method: "POST", body: {} });
-      toast(`Generated ${sol.pairs.length} pairs`);
+      const sol = await api("/api/rounds/solve", {
+        method: "POST",
+        body: {},
+        timeoutMs: SOLVE_TIMEOUT_MS,
+      });
+      toast(`Generated ${sol.pairs.length} pairs${solvedNote(sol)}`);
       showRound(sol.round, { silent: true });
     });
   });
@@ -800,13 +836,14 @@ async function showRound(n, { silent = false } = {}) {
         const sol = await api("/api/rounds/solve", {
           method: "POST",
           body: { regenerate: true },
+          timeoutMs: SOLVE_TIMEOUT_MS,
         });
         document.getElementById("solution-area").innerHTML = renderSolution(
           sol,
           { canDiscourage: true },
         );
         renderConfigEditor(n, allNames, { isLatestSolved });
-        toast(`Pushed ${a} and ${b} apart`);
+        toast(`Pushed ${a} and ${b} apart${solvedNote(sol)}`);
       });
     },
   );
@@ -864,7 +901,10 @@ function renderSolution(sol, { canDiscourage = false } = {}) {
   const cost = sol.cost && sol.cost > 0
     ? `<p class="small muted">Solution cost: ${sol.cost}</p>`
     : "";
-  return legend + pairs + removed + cost;
+  const note = sol.optimal === false
+    ? `<p class="small" style="color:var(--warn)">This round was hard to solve, so the optimiser stopped at a time limit — this is a valid pairing but may not be the lowest-cost one. Regenerate to try again.</p>`
+    : "";
+  return legend + pairs + removed + cost + note;
 }
 
 // size sandboxed email iframes to their content height
@@ -1171,8 +1211,11 @@ function renderConfigEditor(n, allNames, { isLatestSolved = false } = {}) {
         const sol = await api("/api/rounds/solve", {
           method: "POST",
           body: { regenerate: true },
+          timeoutMs: SOLVE_TIMEOUT_MS,
         });
-        toast(`Saved & regenerated (${sol.pairs.length} pairs)`);
+        toast(
+          `Saved & regenerated (${sol.pairs.length} pairs)${solvedNote(sol)}`,
+        );
       } else {
         toast("Configuration saved");
       }

@@ -206,6 +206,13 @@ def test_solve_creates_solution(store_with_round):
     assert len(api.list_rounds(store_with_round)) == 2
 
 
+def test_solve_result_reports_optimal(store_with_round):
+    api.create_round(store_with_round, date="2026-06-01")
+    result = api.solve(store_with_round)
+    # small instance solves to proven optimality
+    assert result["optimal"] is True
+
+
 def test_solve_regenerate(store_with_round):
     api.create_round(store_with_round, date="2026-06-01")
     api.solve(store_with_round)
