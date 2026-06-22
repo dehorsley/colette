@@ -254,6 +254,7 @@ views.overview = async function () {
           body: {},
           timeoutMs: SOLVE_TIMEOUT_MS,
         });
+        trackOptimality(sol.round, sol);
         toast(
           `Generated ${sol.pairs.length} pairs for round ${sol.round}${
             solvedNote(sol)
@@ -289,47 +290,63 @@ async function withBusy(btn, fn) {
   }
 }
 
-// Solving runs the optimiser server-side; it's near-instant for typical group
-// sizes but could take a moment for large pools. `busy` blocks overlapping
-// solves (e.g. a second "discourage" click) and a sticky message keeps the user
-// informed even if the triggering button has scrolled out of view.
-// Client-side backstop: the server caps the solve at ~30s, so anything beyond
-// this means something is genuinely wrong rather than just a slow solve.
+// Client-side backstop for a normal solve (server caps it at ~30s); the
+// "try for longer" action raises both this and the server budget.
 const SOLVE_TIMEOUT_MS = 60000;
-// Note appended when the solver hit its time limit before proving optimality.
+// Only surface a progress message once a solve has run this long, so quick
+// solves (the common case) stay silent.
+const SOLVE_NOTICE_MS = 500;
+// After this long, tell the user it's a genuinely hard round.
+const SOLVE_HARD_MS = 10000;
+// Rounds whose current solution came back time-limited (not proven optimal),
+// tracked in-memory so the round page can flag it for this session.
+const timeLimitedRounds = new Set();
+// Note appended to a success toast when the solver hit its time limit.
 function solvedNote(sol) {
   return sol && sol.optimal === false
     ? " — time-limited, may not be optimal"
     : "";
 }
+// Remember whether a round's freshly-computed solution was proven optimal.
+function trackOptimality(round, sol) {
+  if (sol && sol.optimal === false) timeLimitedRounds.add(round);
+  else timeLimitedRounds.delete(round);
+}
+
+const statusEl = document.getElementById("status");
+function showStatus(message) {
+  statusEl.innerHTML = `<span class="spinner"></span> ${esc(message)}`;
+  statusEl.classList.add("show");
+}
+function hideStatus() {
+  statusEl.classList.remove("show");
+}
 
 let busy = false;
-function showBusy(message) {
-  busy = true;
-  clearTimeout(toastTimer);
-  toastEl.textContent = message;
-  toastEl.classList.remove("error");
-  toastEl.classList.add("show");
-}
-function endBusy() {
-  busy = false;
-  toastEl.classList.remove("show");
-}
-
 async function withSolve(btn, message, fn) {
   if (busy) return; // a solve is already in flight — ignore double-clicks
+  busy = true;
   const old = btn.innerHTML;
   btn.disabled = true;
   btn.innerHTML = `<span class="spinner"></span>`;
-  showBusy(message);
+  // Stay silent for quick solves; show a message only if it's slow, and
+  // escalate the wording if it's genuinely taking a while.
+  const noticeTimer = setTimeout(() => showStatus(message), SOLVE_NOTICE_MS);
+  const hardTimer = setTimeout(
+    () => showStatus("Still working — this is a hard round to solve…"),
+    SOLVE_HARD_MS,
+  );
   try {
     await fn();
-    endBusy();
   } catch (e) {
-    endBusy();
     toast(e.message, true);
     btn.disabled = false;
     btn.innerHTML = old;
+  } finally {
+    clearTimeout(noticeTimer);
+    clearTimeout(hardTimer);
+    hideStatus();
+    busy = false;
   }
 }
 
@@ -763,6 +780,10 @@ async function showRound(n, { silent = false } = {}) {
     : null;
   editDirty = false; // fresh load → no unsaved changes
 
+  // the on-disk solution can't record optimality, so reflect what we learned
+  // when it was last solved this session
+  if (data.solution) data.solution.optimal = !timeLimitedRounds.has(n);
+
   const generateBtn = isNextUnsolved
     ? `<button class="btn primary" id="solve">Generate pairings</button>`
     : "";
@@ -806,16 +827,47 @@ async function showRound(n, { silent = false } = {}) {
         body: {},
         timeoutMs: SOLVE_TIMEOUT_MS,
       });
+      trackOptimality(sol.round, sol);
       toast(`Generated ${sol.pairs.length} pairs${solvedNote(sol)}`);
       showRound(sol.round, { silent: true });
     });
   });
 
-  // discourage a specific pairing → add/raise an override, save, regenerate.
-  // Updates the pairings and config in place so the page doesn't jump.
+  const refreshSolution = (sol) => {
+    trackOptimality(n, sol);
+    document.getElementById("solution-area").innerHTML = renderSolution(sol, {
+      canDiscourage: true,
+    });
+  };
+
   document.getElementById("solution-area")?.addEventListener(
     "click",
     async (e) => {
+      // "Try for longer" → re-solve the same round with a bigger time budget.
+      const longBtn = e.target.closest("[data-try-longer]");
+      if (longBtn && !busy) {
+        await withSolve(
+          longBtn,
+          "Trying for longer — this can take a couple of minutes…",
+          async () => {
+            const sol = await api("/api/rounds/solve", {
+              method: "POST",
+              body: { regenerate: true, max_seconds: 120 },
+              timeoutMs: 130000,
+            });
+            refreshSolution(sol);
+            toast(
+              sol.optimal === false
+                ? `Still time-limited (${sol.pairs.length} pairs) — the round is genuinely hard`
+                : `Found an optimal pairing (${sol.pairs.length} pairs)`,
+            );
+          },
+        );
+        return;
+      }
+
+      // discourage a specific pairing → add/raise an override, save, regenerate.
+      // Updates the pairings and config in place so the page doesn't jump.
       const btn = e.target.closest("[data-discourage]");
       if (!btn || !edit || busy) return;
       const a = btn.dataset.a;
@@ -838,10 +890,7 @@ async function showRound(n, { silent = false } = {}) {
           body: { regenerate: true },
           timeoutMs: SOLVE_TIMEOUT_MS,
         });
-        document.getElementById("solution-area").innerHTML = renderSolution(
-          sol,
-          { canDiscourage: true },
-        );
+        refreshSolution(sol);
         renderConfigEditor(n, allNames, { isLatestSolved });
         toast(`Pushed ${a} and ${b} apart${solvedNote(sol)}`);
       });
@@ -859,10 +908,19 @@ function renderSolution(sol, { canDiscourage = false } = {}) {
   if (!sol.pairs.length && !sol.removed.length) {
     return `<p class="muted small">No pairs.</p>`;
   }
-  const legend =
-    `<p class="small muted" style="margin:.2rem 0 .6rem">Shown as primary &harr; secondary.${
-      canDiscourage ? " Use &times; to push a pair apart and regenerate." : ""
-    }</p>`;
+  const hasCaviats = sol.pairs.some((p) => p.caviats.length);
+  const legendParts = ["Shown as primary &harr; secondary."];
+  if (canDiscourage) {
+    legendParts.push("Use &times; to push a pair apart and try again.");
+  }
+  if (hasCaviats) {
+    legendParts.push(
+      "A note under a pairing explains why it wasn't an ideal match.",
+    );
+  }
+  const legend = `<p class="small muted" style="margin:.2rem 0 .6rem">${
+    legendParts.join(" ")
+  }</p>`;
   const pairs = sol.pairs
     .map(
       (p) => `
@@ -880,12 +938,14 @@ function renderSolution(sol, { canDiscourage = false } = {}) {
             esc(p.primary.name)
           }" data-b="${
             esc(p.secondary.name)
-          }" title="Discourage this pairing and regenerate">&times;</button>`
+          }" title="Discourage this pairing and try again">&times;</button>`
           : ""
       }
         ${
         p.caviats.length
-          ? `<span class="caviats">${esc(p.caviats.join("; "))}</span>`
+          ? `<span class="caviats">Not an ideal match: ${
+            esc(p.caviats.join(", "))
+          }</span>`
           : ""
       }
       </div>`,
@@ -902,7 +962,17 @@ function renderSolution(sol, { canDiscourage = false } = {}) {
     ? `<p class="small muted">Solution cost: ${sol.cost}</p>`
     : "";
   const note = sol.optimal === false
-    ? `<p class="small" style="color:var(--warn)">This round was hard to solve, so the optimiser stopped at a time limit — this is a valid pairing but may not be the lowest-cost one. Regenerate to try again.</p>`
+    ? `<div class="solve-note">
+        <p>We had trouble solving this round — we found a good pairing, but it may not be the <em>best</em> one.</p>
+        <div class="row">
+          ${
+      canDiscourage
+        ? `<button class="btn small" data-try-longer>Try for longer</button>`
+        : ""
+    }
+          <span class="muted small">Solving again as-is gives the same pairing — to get a different one, adjust the configuration above (remove someone, let someone sit out, or nudge a pair) and save.</span>
+        </div>
+      </div>`
     : "";
   return legend + pairs + removed + cost + note;
 }
@@ -1213,6 +1283,7 @@ function renderConfigEditor(n, allNames, { isLatestSolved = false } = {}) {
           body: { regenerate: true },
           timeoutMs: SOLVE_TIMEOUT_MS,
         });
+        trackOptimality(n, sol);
         toast(
           `Saved & regenerated (${sol.pairs.length} pairs)${solvedNote(sol)}`,
         );

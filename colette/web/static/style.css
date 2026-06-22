@@ -614,6 +614,49 @@ details > summary {
   }
 }
 
+/* ---- solve status pill (shown only when a solve is slow) ---- */
+.status {
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(-1rem);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  padding: 0.5rem 0.95rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 60;
+  max-width: 90%;
+}
+.status.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ---- time-limited solve note ---- */
+.solve-note {
+  margin-top: 0.7rem;
+  padding: 0.7rem 0.85rem;
+  background: var(--warn-soft);
+  border-radius: var(--radius-sm);
+}
+.solve-note p {
+  margin: 0 0 0.5rem;
+  color: var(--warn);
+  font-size: 0.88rem;
+}
+.solve-note .row {
+  gap: 0.6rem;
+}
+
 /* ---- toast ---- */
 .toast {
   position: fixed;

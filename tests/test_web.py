@@ -213,6 +213,23 @@ def test_solve_result_reports_optimal(store_with_round):
     assert result["optimal"] is True
 
 
+def test_solve_accepts_max_seconds(store_with_round):
+    api.create_round(store_with_round, date="2026-06-01")
+    result = api.solve(store_with_round, max_seconds=5)
+    assert result["round"] == 2
+    # 3 active people → one pair, one sitting out
+    assert len(result["pairs"]) == 1
+    assert (store_with_round.path / "solution_000002.toml").exists()
+
+
+def test_solve_rejects_bad_max_seconds(store_with_round):
+    api.create_round(store_with_round, date="2026-06-01")
+    with pytest.raises(api.ApiError):
+        api.solve(store_with_round, max_seconds="soon")
+    with pytest.raises(api.ApiError):
+        api.solve(store_with_round, max_seconds=0)
+
+
 def test_solve_regenerate(store_with_round):
     api.create_round(store_with_round, date="2026-06-01")
     api.solve(store_with_round)
@@ -288,6 +305,23 @@ def test_preview_template_reports_error_without_raising():
     res = api.preview_template("ok", "{% bad jinja %}")
     assert res["error"]  # non-empty error message
     # must not raise — the editor shows the error inline while typing
+
+
+def test_display_caviats_hides_same_role_and_humanizes():
+    raw = [
+        "are in the same organisation",
+        "were paired less than 3 rounds ago",
+        "were the same role last round",
+        "override values 1000",
+    ]
+    shown = api._display_caviats(raw)
+    assert "same role" not in " ".join(shown)  # dropped
+    assert "in the same organisation" in shown
+    assert "paired less than 3 rounds ago" in shown
+    assert "nudged by an override" in shown
+    # no leading "are "/"were " left, and no raw weight number leaked
+    assert all(not c.startswith(("are ", "were ")) for c in shown)
+    assert not any("1000" in c for c in shown)
 
 
 def test_get_history_includes_round_dates(store_with_round):

@@ -199,7 +199,11 @@ class Handler(BaseHTTPRequestHandler):
 
     @_route("POST", r"/api/rounds/solve")
     def _solve(self, match, body):
-        return HTTPStatus.OK, api.solve(self.store, bool(body.get("regenerate")))
+        return HTTPStatus.OK, api.solve(
+            self.store,
+            bool(body.get("regenerate")),
+            body.get("max_seconds"),
+        )
 
     @_route("GET", r"/api/rounds/(?P<n>\d+)")
     def _get_round(self, match, body):

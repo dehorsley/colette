@@ -54,6 +54,28 @@ def person_dict(p: Person) -> dict:
     }
 
 
+def _display_caviats(caviats: list[str]) -> list[str]:
+    """Turn the solver's internal caveat strings into user-facing reasons.
+
+    Drops the "same role" caveat (it's usually a zero-cost technicality the
+    user hasn't asked to care about) and rephrases the rest into plain reasons
+    a pairing wasn't ideal.
+    """
+    shown = []
+    for c in caviats:
+        if c.startswith("were the same role"):
+            continue
+        if c.startswith("override values"):
+            shown.append("nudged by an override")
+        elif c.startswith("are "):
+            shown.append(c[len("are ") :])
+        elif c.startswith("were "):
+            shown.append(c[len("were ") :])
+        else:
+            shown.append(c)
+    return shown
+
+
 def _pair_dict(pair, people: dict[str, Person], caviats: list[str]) -> dict:
     removed = pair.primary == pair.secondary
 
@@ -70,7 +92,7 @@ def _pair_dict(pair, people: dict[str, Person], caviats: list[str]) -> dict:
             "name": pair.secondary.name,
             "organisation": org(pair.secondary.name),
         },
-        "caviats": list(caviats),
+        "caviats": _display_caviats(caviats),
     }
 
 
@@ -517,8 +539,27 @@ def create_round(store: FileStorage, date: str | None = None) -> dict:
     return {"number": status["next_round"], **status}
 
 
-def solve(store: FileStorage, regenerate: bool = False) -> dict:
-    """Solve the next round, or regenerate the most recently solved round."""
+def solve(
+    store: FileStorage,
+    regenerate: bool = False,
+    max_seconds: float | None = None,
+) -> dict:
+    """Solve the next round, or regenerate the most recently solved round.
+
+    ``max_seconds`` (optional) overrides the solver's default time limit — used
+    by the GUI's "try for longer" action on a hard round. It is capped so a
+    request can't tie up the server indefinitely.
+    """
+    kwargs = {}
+    if max_seconds is not None:
+        try:
+            seconds = float(max_seconds)
+        except (TypeError, ValueError) as e:
+            raise ApiError("max_seconds must be a number") from e
+        if seconds <= 0:
+            raise ApiError("max_seconds must be greater than zero")
+        kwargs["max_seconds"] = min(seconds, 600)
+
     people = store.load_people()
     solutions = store.load_solutions(people)
 
@@ -539,7 +580,7 @@ def solve(store: FileStorage, regenerate: bool = False) -> dict:
             status=400,
         ) from e
 
-    solution = solver.solve_round(config, previous_rounds=previous)
+    solution = solver.solve_round(config, previous_rounds=previous, **kwargs)
     store.store_solution(solution)
     store.store_solution(solution, type="csv")
     return _solution_dict(solution, people)
