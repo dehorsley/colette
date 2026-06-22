@@ -51,16 +51,50 @@ function loading() {
 }
 
 // ---------------------------------------------------------------- routing
+// Views are driven by the URL hash (#/people, #/round/57, …) so the browser
+// back/forward buttons work and views are linkable.
 const views = {};
 let currentView = "overview";
 
-function setView(name) {
-  currentView = name;
+function setActiveTab(view) {
+  currentView = view;
   for (const tab of tabsEl.querySelectorAll(".tab")) {
-    tab.classList.toggle("active", tab.dataset.view === name);
+    tab.classList.toggle("active", tab.dataset.view === view);
   }
-  views[name]();
 }
+
+// Navigate (adds a history entry). Re-rendering happens via the hashchange.
+function setView(name) {
+  location.hash = "#/" + name;
+}
+function gotoRound(n) {
+  location.hash = "#/round/" + n;
+}
+
+function handleRoute() {
+  const [seg, arg] = location.hash.replace(/^#\/?/, "").split("/");
+  if (seg === "people") {
+    setActiveTab("people");
+    views.people();
+  } else if (seg === "rounds") {
+    setActiveTab("rounds");
+    views.rounds();
+  } else if (seg === "round" && arg) {
+    setActiveTab("rounds");
+    showRound(Number(arg));
+  } else if (seg === "email") {
+    setActiveTab("email");
+    views.email();
+  } else if (seg === "history") {
+    setActiveTab("history");
+    views.history();
+  } else {
+    setActiveTab("overview");
+    views.overview();
+  }
+}
+
+globalThis.addEventListener("hashchange", handleRoute);
 
 tabsEl.addEventListener("click", (e) => {
   const tab = e.target.closest(".tab");
@@ -190,33 +224,33 @@ views.overview = async function () {
       await withBusy(ev.target, async () => {
         const r = await api("/api/rounds", { method: "POST", body: {} });
         toast(`Created round ${r.number}`);
-        showRound(r.number);
+        gotoRound(r.number);
       });
     },
   );
   main.querySelector('[data-act="generate"]')?.addEventListener(
     "click",
     async (ev) => {
-      await withBusy(ev.target, async () => {
+      await withSolve(ev.target, "Generating pairings…", async () => {
         const sol = await api("/api/rounds/solve", {
           method: "POST",
           body: {},
         });
         toast(`Generated ${sol.pairs.length} pairs for round ${sol.round}`);
-        showRound(sol.round);
+        gotoRound(sol.round);
       });
     },
   );
   main.querySelector('[data-act="open-next"]')?.addEventListener(
     "click",
-    () => showRound(s.next_round),
+    () => gotoRound(s.next_round),
   );
   main.querySelector('[data-act="open-last"]')?.addEventListener(
     "click",
-    () => showRound(s.last_round),
+    () => gotoRound(s.last_round),
   );
   main.querySelectorAll("tr.clickable").forEach((tr) =>
-    tr.addEventListener("click", () => showRound(Number(tr.dataset.round)))
+    tr.addEventListener("click", () => gotoRound(Number(tr.dataset.round)))
   );
 };
 
@@ -227,6 +261,40 @@ async function withBusy(btn, fn) {
   try {
     await fn();
   } catch (e) {
+    toast(e.message, true);
+    btn.disabled = false;
+    btn.innerHTML = old;
+  }
+}
+
+// Solving runs the optimiser server-side; it's near-instant for typical group
+// sizes but could take a moment for large pools. `busy` blocks overlapping
+// solves (e.g. a second "discourage" click) and a sticky message keeps the user
+// informed even if the triggering button has scrolled out of view.
+let busy = false;
+function showBusy(message) {
+  busy = true;
+  clearTimeout(toastTimer);
+  toastEl.textContent = message;
+  toastEl.classList.remove("error");
+  toastEl.classList.add("show");
+}
+function endBusy() {
+  busy = false;
+  toastEl.classList.remove("show");
+}
+
+async function withSolve(btn, message, fn) {
+  if (busy) return; // a solve is already in flight — ignore double-clicks
+  const old = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span>`;
+  showBusy(message);
+  try {
+    await fn();
+    endBusy();
+  } catch (e) {
+    endBusy();
     toast(e.message, true);
     btn.disabled = false;
     btn.innerHTML = old;
@@ -374,7 +442,7 @@ Charlie Day"></textarea>
           },
         });
         toast(`Added ${name}`);
-        setView("people");
+        views.people();
       });
     },
   );
@@ -394,7 +462,7 @@ Charlie Day"></textarea>
       if (res.skipped) parts.push(`skipped ${res.skipped} existing`);
       if (res.errors.length) parts.push(`${res.errors.length} errors`);
       toast(parts.join(", "));
-      setView("people");
+      views.people();
     });
   });
 
@@ -431,7 +499,7 @@ Charlie Day"></textarea>
           method: "DELETE",
         });
         toast(`Deleted ${name}`);
-        setView("people");
+        views.people();
       } catch (err) {
         toast(err.message, true);
       }
@@ -500,7 +568,7 @@ function openEditPerson(person) {
       });
       toast(`Updated ${body.name}`);
       close();
-      setView("people");
+      views.people();
     } catch (err) {
       toast(err.message, true);
       btn.disabled = false;
@@ -583,21 +651,23 @@ views.rounds = async function () {
       await withBusy(ev.target, async () => {
         const r = await api("/api/rounds", { method: "POST", body: {} });
         toast(`Created round ${r.number}`);
-        showRound(r.number);
+        gotoRound(r.number);
       });
     },
   );
   main.querySelector('[data-act="open-next"]')?.addEventListener(
     "click",
-    () => showRound(status.next_round),
+    () => gotoRound(status.next_round),
   );
   main.querySelectorAll(".round-cell").forEach((c) =>
-    c.addEventListener("click", () => showRound(Number(c.dataset.round)))
+    c.addEventListener("click", () => gotoRound(Number(c.dataset.round)))
   );
 };
 
 // editable config state for the round detail view
 let edit = null;
+// whether the config editor has unsaved changes (drives the save button)
+let editDirty = false;
 // how much weight a "discourage" click adds to a pairing override
 const DISCOURAGE_STEP = 1000;
 // residual cost left on a "may sit out" person so the solver still prefers to
@@ -659,6 +729,7 @@ async function showRound(n, { silent = false } = {}) {
       costs: { ...data.config.costs },
     }
     : null;
+  editDirty = false; // fresh load → no unsaved changes
 
   const generateBtn = isNextUnsolved
     ? `<button class="btn primary" id="solve">Generate pairings</button>`
@@ -697,7 +768,7 @@ async function showRound(n, { silent = false } = {}) {
   renderConfigEditor(n, allNames, { isLatestSolved });
 
   document.getElementById("solve")?.addEventListener("click", async (ev) => {
-    await withBusy(ev.target, async () => {
+    await withSolve(ev.target, "Generating pairings…", async () => {
       const sol = await api("/api/rounds/solve", { method: "POST", body: {} });
       toast(`Generated ${sol.pairs.length} pairs`);
       showRound(sol.round, { silent: true });
@@ -710,18 +781,18 @@ async function showRound(n, { silent = false } = {}) {
     "click",
     async (e) => {
       const btn = e.target.closest("[data-discourage]");
-      if (!btn || !edit) return;
+      if (!btn || !edit || busy) return;
       const a = btn.dataset.a;
       const b = btn.dataset.b;
-      const existing = edit.overrides.find(
-        (o) =>
-          o.pair[0] !== o.pair[1] &&
-          ((o.pair[0] === a && o.pair[1] === b) ||
-            (o.pair[0] === b && o.pair[1] === a)),
-      );
-      if (existing) existing.weight += DISCOURAGE_STEP;
-      else edit.overrides.push({ pair: [a, b], weight: DISCOURAGE_STEP });
-      await withBusy(btn, async () => {
+      await withSolve(btn, "Regenerating…", async () => {
+        const existing = edit.overrides.find(
+          (o) =>
+            o.pair[0] !== o.pair[1] &&
+            ((o.pair[0] === a && o.pair[1] === b) ||
+              (o.pair[0] === b && o.pair[1] === a)),
+        );
+        if (existing) existing.weight += DISCOURAGE_STEP;
+        else edit.overrides.push({ pair: [a, b], weight: DISCOURAGE_STEP });
         await api(`/api/rounds/${n}/config`, {
           method: "PUT",
           body: currentCfgBody(),
@@ -732,9 +803,7 @@ async function showRound(n, { silent = false } = {}) {
         });
         document.getElementById("solution-area").innerHTML = renderSolution(
           sol,
-          {
-            canDiscourage: true,
-          },
+          { canDiscourage: true },
         );
         renderConfigEditor(n, allNames, { isLatestSolved });
         toast(`Pushed ${a} and ${b} apart`);
@@ -906,11 +975,8 @@ function renderConfigEditor(n, allNames, { isLatestSolved = false } = {}) {
   area.innerHTML = `
     <div class="card">
       ${datalist}
-      <div class="row spread">
-        <h3 style="margin:0">Configuration</h3>
-        <button class="btn primary small" id="save-config">${saveLabel}</button>
-      </div>
-      <div class="row" style="margin-top:.8rem;align-items:flex-end">
+      <h3 style="margin:0 0 .2rem">Configuration</h3>
+      <div class="row" style="margin-top:.6rem;align-items:flex-end">
         <label class="field"><span>Date</span><input type="date" id="cfg-date" value="${
     esc(edit.date)
   }"></label>
@@ -919,72 +985,93 @@ function renderConfigEditor(n, allNames, { isLatestSolved = false } = {}) {
   }"></label>
       </div>
 
-      <h4 style="margin:1rem 0 .3rem">Removed from this round <span class="muted small">(won't be paired at all)</span></h4>
-      <div class="chips">${
+      <div class="config-section">
+        <h4>Removed from this round <span class="muted small">(won't be paired at all)</span></h4>
+        <div class="chips">${
     removeChips || '<span class="muted small">Nobody removed.</span>'
   }</div>
-      <div class="row">
-        <input list="all-people" id="rm-name" placeholder="search a person…" style="min-width:180px">
-        <select id="rm-until-type">
-          <option value="">until further notice</option>
-          <option value="date">until a date…</option>
-          <option value="round">until a round #…</option>
-        </select>
-        <input type="date" id="rm-until-date" style="display:none">
-        <input type="number" id="rm-until-round" min="1" placeholder="round #" style="display:none;width:110px">
-        <button class="btn small" id="rm-add">Remove person</button>
+        <div class="row config-add">
+          <input list="all-people" id="rm-name" placeholder="search a person…" style="min-width:180px">
+          <select id="rm-until-type">
+            <option value="">until further notice</option>
+            <option value="date">until a date…</option>
+            <option value="round">until a round #…</option>
+          </select>
+          <input type="date" id="rm-until-date" style="display:none">
+          <input type="number" id="rm-until-round" min="1" placeholder="round #" style="display:none;width:110px">
+          <button class="btn small" id="rm-add">Remove person</button>
+        </div>
       </div>
 
-      <h4 style="margin:1rem 0 .3rem">Allow to sit out <span class="muted small">(stay in the pool, but OK to leave unpaired — handy for odd groups)</span></h4>
-      <div class="chips">${
+      <div class="config-section">
+        <h4>Allow to sit out <span class="muted small">(stay in the pool, but OK to leave unpaired — handy for odd groups)</span></h4>
+        <div class="chips">${
     sitOutChips || '<span class="muted small">Nobody flagged to sit out.</span>'
   }</div>
-      <div class="row">
-        <input list="all-people" id="sit-name" placeholder="search a person…" style="min-width:180px">
-        <button class="btn small" id="sit-add">Allow to sit out</button>
+        <div class="row config-add">
+          <input list="all-people" id="sit-name" placeholder="search a person…" style="min-width:180px">
+          <button class="btn small" id="sit-add">Allow to sit out</button>
+        </div>
       </div>
 
-      <h4 style="margin:1rem 0 .3rem">Overrides <span class="muted small">(nudge a specific pairing together or apart)</span></h4>
-      <div class="chips">${
+      <div class="config-section">
+        <h4>Overrides <span class="muted small">(nudge a specific pairing together or apart)</span></h4>
+        <div class="chips">${
     overrideChips || '<span class="muted small">No overrides.</span>'
   }</div>
-      <div class="row">
-        <input list="all-people" id="ov-a" placeholder="first person…" style="min-width:150px">
-        <input list="all-people" id="ov-b" placeholder="second person…" style="min-width:150px">
-        <select id="ov-dir"><option value="avoid">keep apart</option><option value="prefer">pair up</option></select>
-        <button class="btn small" id="ov-add">Add override</button>
+        <div class="row config-add">
+          <input list="all-people" id="ov-a" placeholder="first person…" style="min-width:150px">
+          <input list="all-people" id="ov-b" placeholder="second person…" style="min-width:150px">
+          <select id="ov-dir"><option value="avoid">keep apart</option><option value="prefer">pair up</option></select>
+          <button class="btn small" id="ov-add">Add override</button>
+        </div>
       </div>
 
       <details style="margin-top:1rem">
         <summary>Advanced: costs</summary>
         <div style="margin-top:.6rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.3rem 1rem">${costRows}</div>
       </details>
+
+      <div class="config-footer">
+        <span class="dirty-hint"${
+    editDirty ? "" : " hidden"
+  }>Unsaved changes</span>
+        <button class="btn primary" id="save-config"${
+    editDirty ? "" : " disabled"
+  }>${saveLabel}</button>
+      </div>
     </div>`;
 
-  area.querySelector("#cfg-date").addEventListener(
-    "change",
-    (e) => (edit.date = e.target.value),
-  );
-  area.querySelector("#cfg-notes").addEventListener(
-    "input",
-    (e) => (edit.notes = e.target.value),
-  );
+  const rerender = () => renderConfigEditor(n, allNames, { isLatestSolved });
+  const markDirty = () => {
+    editDirty = true;
+    const btn = area.querySelector("#save-config");
+    if (btn) btn.disabled = false;
+    const hint = area.querySelector(".dirty-hint");
+    if (hint) hint.hidden = false;
+  };
+
+  area.querySelector("#cfg-date").addEventListener("change", (e) => {
+    edit.date = e.target.value;
+    markDirty();
+  });
+  area.querySelector("#cfg-notes").addEventListener("input", (e) => {
+    edit.notes = e.target.value;
+    markDirty();
+  });
   area.querySelectorAll("[data-cost]").forEach((inp) =>
     inp.addEventListener("change", (e) => {
       edit.costs[e.target.dataset.cost] = parseInt(e.target.value, 10) || 0;
+      markDirty();
     })
   );
-
-  const rerender = () => renderConfigEditor(n, allNames, { isLatestSolved });
 
   const untilType = area.querySelector("#rm-until-type");
   untilType.addEventListener("change", () => {
     area.querySelector("#rm-until-date").style.display =
       untilType.value === "date" ? "" : "none";
-    area.querySelector("#rm-until-round").style.display = untilType.value ===
-        "round"
-      ? ""
-      : "none";
+    area.querySelector("#rm-until-round").style.display =
+      untilType.value === "round" ? "" : "none";
   });
 
   area.querySelector("#rm-add").addEventListener("click", () => {
@@ -1013,6 +1100,7 @@ function renderConfigEditor(n, allNames, { isLatestSolved = false } = {}) {
       until = parseInt(rv, 10);
     }
     edit.removes.push({ name, until });
+    editDirty = true;
     rerender();
   });
 
@@ -1032,6 +1120,7 @@ function renderConfigEditor(n, allNames, { isLatestSolved = false } = {}) {
     const cnp = parseInt(edit.costs.cost_of_not_pairing, 10) || 50;
     const weight = cnp > SIT_OUT_RESIDUAL ? SIT_OUT_RESIDUAL - cnp : -cnp;
     edit.overrides.push({ pair: [name, name], weight });
+    editDirty = true;
     rerender();
   });
 
@@ -1051,24 +1140,29 @@ function renderConfigEditor(n, allNames, { isLatestSolved = false } = {}) {
       pair: [a, b],
       weight: dir === "avoid" ? 1000 : -1000,
     });
+    editDirty = true;
     rerender();
   });
 
   area.querySelectorAll("[data-remove-idx]").forEach((b) =>
     b.addEventListener("click", () => {
       edit.removes.splice(Number(b.dataset.removeIdx), 1);
+      editDirty = true;
       rerender();
     })
   );
   area.querySelectorAll("[data-override-idx]").forEach((b) =>
     b.addEventListener("click", () => {
       edit.overrides.splice(Number(b.dataset.overrideIdx), 1);
+      editDirty = true;
       rerender();
     })
   );
 
   area.querySelector("#save-config").addEventListener("click", async (ev) => {
-    await withBusy(ev.target, async () => {
+    if (!editDirty || busy) return;
+    const message = isLatestSolved ? "Saving & regenerating…" : "Saving…";
+    await withSolve(ev.target, message, async () => {
       await api(`/api/rounds/${n}/config`, {
         method: "PUT",
         body: currentCfgBody(),
@@ -1224,28 +1318,33 @@ views.email = async function () {
 
   main.innerHTML = `
     <div class="card">
-      <div class="row spread">
-        <h2 style="margin:0">Email templates</h2>
-        <button class="btn primary small" id="save-tpl">Save templates</button>
-      </div>
+      <h2 style="margin:0 0 .3rem">Email templates</h2>
       <p class="small muted">Jinja2 templates shared by every round. Variables you can use:
         <code>primary</code> and <code>secondary</code> (each with <code>.name</code>,
         <code>.email</code>, <code>.organisation</code>), <code>round_config</code>
         (e.g. <code>round_config.date</code>) and <code>caviats</code>.</p>
-      <label class="field" style="margin-bottom:.7rem"><span>Subject (subject.txt)</span>
-        <input id="tpl-subject" value="${esc(initialSubject)}"></label>
-      <label class="field"><span>Body (body.html)</span>
-        <textarea id="tpl-body" rows="14" style="font-family:var(--mono);width:100%;resize:vertical">${
+      <div class="tpl-grid">
+        <div class="editor-col">
+          <label class="field" style="margin-bottom:.7rem"><span>Subject (subject.txt)</span>
+            <input id="tpl-subject" value="${esc(initialSubject)}"></label>
+          <label class="field"><span>Body (body.html)</span>
+            <textarea id="tpl-body" rows="18" style="font-family:var(--mono);width:100%;resize:vertical">${
     esc(initialBody)
   }</textarea></label>
-    </div>
-    <div class="card">
-      <h3 style="margin:0 0 .2rem">Preview <span class="muted small">(example participants, updates as you type)</span></h3>
-      <div id="live-preview"><p class="muted small">…</p></div>
+        </div>
+        <div class="preview-col">
+          <h4>Preview <span class="muted small">(example participants, live)</span></h4>
+          <div id="live-error" class="dirty-hint" style="color:var(--danger)" hidden></div>
+          <div id="live-preview"></div>
+        </div>
+      </div>
+      <div class="config-footer">
+        <button class="btn primary small" id="save-tpl">Save templates</button>
+      </div>
       ${
     solved.length
       ? `<details style="margin-top:1rem">
-        <summary>Preview a generated round (uses saved templates)</summary>
+        <summary>Preview a generated round's real emails (uses saved templates)</summary>
         <div class="row" style="margin:.6rem 0">
           <select id="prev-round">${roundOptions}</select>
           <button class="btn" id="prev-btn">Preview round</button>
@@ -1260,25 +1359,58 @@ views.email = async function () {
   const subjectEl = document.getElementById("tpl-subject");
   const bodyEl = document.getElementById("tpl-body");
   const liveEl = document.getElementById("live-preview");
+  const liveErr = document.getElementById("live-error");
 
+  // Build the preview card once and update its parts in place, so the iframe
+  // isn't recreated on every keystroke (which caused a white flash).
+  function buildLiveCard() {
+    liveEl.innerHTML = `
+      <div class="email">
+        <div class="head">
+          <div class="subject"></div>
+          <div class="muted live-to"></div>
+        </div>
+        <iframe sandbox="allow-same-origin"></iframe>
+      </div>`;
+    const f = liveEl.querySelector("iframe");
+    f.addEventListener("load", () => {
+      try {
+        f.style.height = f.contentWindow.document.body.scrollHeight + 24 + "px";
+      } catch {
+        /* ignore */
+      }
+    });
+  }
+
+  let lastBody = null;
   let liveTimer = null;
   async function refreshLivePreview() {
+    let res;
     try {
-      const res = await api("/api/templates/preview", {
+      res = await api("/api/templates/preview", {
         method: "POST",
         body: { subject: subjectEl.value, body: bodyEl.value },
       });
-      if (res.error) {
-        liveEl.innerHTML =
-          `<p class="small" style="color:var(--danger)">Template error: ${
-            esc(res.error)
-          }</p>`;
-        return;
-      }
-      liveEl.innerHTML = emailCard(res);
-      sizeIframes(liveEl);
     } catch (e) {
-      liveEl.innerHTML = `<p class="small muted">${esc(e.message)}</p>`;
+      liveErr.hidden = false;
+      liveErr.textContent = e.message;
+      return;
+    }
+    if (res.error) {
+      liveErr.hidden = false;
+      liveErr.textContent = "Template error: " + res.error;
+      return; // keep the last good preview on screen
+    }
+    liveErr.hidden = true;
+    if (!liveEl.querySelector(".email")) buildLiveCard();
+    liveEl.querySelector(".subject").textContent = res.subject;
+    liveEl.querySelector(".live-to").textContent = "To: " +
+      res.to.map((r) => `${r.name} <${r.email}>`).join(", ");
+    if (res.body !== lastBody) {
+      const f = liveEl.querySelector("iframe");
+      if (f.offsetHeight) f.style.height = f.offsetHeight + "px"; // avoid collapse
+      f.srcdoc = res.body;
+      lastBody = res.body;
     }
   }
   const scheduleLive = () => {
@@ -1336,4 +1468,4 @@ views.email = async function () {
 
 // ---------------------------------------------------------------- boot
 refreshPath();
-setView("overview");
+handleRoute();

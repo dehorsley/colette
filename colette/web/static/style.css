@@ -391,6 +391,53 @@ table.grid tbody tr:hover {
   flex-wrap: wrap;
 }
 
+/* ---- config editor ---- */
+.config-section {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.85rem 1rem;
+  margin-top: 1rem;
+}
+.config-section h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+.config-add {
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+}
+.config-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.9rem;
+  margin-top: 1.1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border);
+}
+.dirty-hint {
+  color: var(--warn);
+  font-size: 0.85rem;
+}
+
+/* ---- email template editor ---- */
+.tpl-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.1rem;
+  align-items: start;
+}
+@media (max-width: 760px) {
+  .tpl-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.tpl-grid .preview-col h4 {
+  margin: 0 0 0.4rem;
+}
+
 /* ---- pairs ---- */
 .pair {
   display: flex;
