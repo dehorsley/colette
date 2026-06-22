@@ -118,6 +118,13 @@ def solution(people):
     return Solution(round=1, pairs=pairs, cost=10, caviats=caviats)
 
 
+def test_solution_optimal_defaults_true(people):
+    sol = Solution(round=1, pairs=frozenset(), cost=0, caviats={})
+    assert sol.optimal is True
+    # the optimality flag is in-memory only; it must not leak into the TOML
+    assert "optimal" not in sol.dumps()
+
+
 def test_solution_dumps(solution):
     toml_str = solution.dumps()
     print(toml_str)

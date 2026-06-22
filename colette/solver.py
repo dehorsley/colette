@@ -5,8 +5,18 @@ import mip
 
 from .models import Pair, Person, RoundConfig, Solution
 
+# Cap on how long the optimiser may run. The pairing problem is a non-bipartite
+# matching, which the MIP solver occasionally can't prove optimal quickly; this
+# bound guarantees solving always returns (with the best pairing found so far)
+# rather than appearing to hang.
+DEFAULT_MAX_SECONDS = 30
 
-def solve_round(config: RoundConfig, previous_rounds: list[Solution]) -> Solution:
+
+def solve_round(
+    config: RoundConfig,
+    previous_rounds: list[Solution],
+    max_seconds: float = DEFAULT_MAX_SECONDS,
+) -> Solution:
     """
     find_pairs finds the best (or a best) set of pairings based on the active players and
     the previous rounds.
@@ -146,7 +156,9 @@ def solve_round(config: RoundConfig, previous_rounds: list[Solution]) -> Solutio
 
             weights[i, j] = cost
 
-    cost, optimal_pair_indices = find_optimal_pairs(len(players), weights)
+    cost, optimal_pair_indices, optimal = find_optimal_pairs(
+        len(players), weights, max_seconds=max_seconds
+    )
 
     caviats_in_solution = {}
     pairs = set()
@@ -161,15 +173,22 @@ def solve_round(config: RoundConfig, previous_rounds: list[Solution]) -> Solutio
         round=config.number,
         pairs=frozenset(pairs),
         caviats=caviats_in_solution,
+        optimal=optimal,
     )
 
 
-def find_optimal_pairs(N, weights) -> (float, list[tuple[int, int]]):
+def find_optimal_pairs(
+    N, weights, max_seconds: float = DEFAULT_MAX_SECONDS
+) -> tuple[float, list[tuple[int, int]], bool]:
     """
     find_optimal_pairs finds an optimal set of pairs of integers between 0 and
     N-1 (incl) that minimize the sum of the weights specified for each pair.
 
-    Returns the objective value and list of pairs.
+    The search is bounded by ``max_seconds``; if the solver can't prove
+    optimality in time it returns the best pairing found so far.
+
+    Returns the objective value, the list of pairs, and whether the result is
+    provably optimal.
     """
 
     # List of possible pairings.
@@ -193,8 +212,16 @@ def find_optimal_pairs(N, weights) -> (float, list[tuple[int, int]]):
     m.objective = mip.minimize(mip.xsum(weights[i, j] * p[i, j] for i, j in pairs))
 
     m.verbose = False
-    status = m.optimize()
-    if status != mip.OptimizationStatus.OPTIMAL:
-        raise Exception("not optimal")
+    status = m.optimize(max_seconds=max_seconds)
 
-    return m.objective_value, [(i, j) for i, j in pairs if p[i, j].x > 0.5]
+    if status not in (
+        mip.OptimizationStatus.OPTIMAL,
+        mip.OptimizationStatus.FEASIBLE,
+    ):
+        raise Exception(f"no pairing found (solver status: {status})")
+
+    return (
+        m.objective_value,
+        [(i, j) for i, j in pairs if p[i, j].x is not None and p[i, j].x > 0.5],
+        status == mip.OptimizationStatus.OPTIMAL,
+    )

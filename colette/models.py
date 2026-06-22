@@ -301,6 +301,9 @@ class Solution:
     round: int
     pairs: frozenset[Pair]
     caviats: dict[Pair, list[str]]
+    # False if the solver hit its time limit before proving optimality (the
+    # pairing is still valid, just not guaranteed to be the lowest-cost one).
+    optimal: bool = True
 
     def __contains__(self, item):
         # if item is a set of people,
