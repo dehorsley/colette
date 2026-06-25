@@ -336,6 +336,11 @@ class Solution:
         doc.add("cost", self.cost)
         doc.add("round", self.round)
 
+        # Only record when the solver couldn't prove optimality, so ordinary
+        # solutions stay byte-for-byte as before.
+        if not self.optimal:
+            doc.add("optimal", False)
+
         pair_table = tomlkit.aot()
 
         # sorted so that the output is deterministic
@@ -412,7 +417,13 @@ class Solution:
             if "caviats" in p:
                 caviats[pair] = p["caviats"]
 
-        return Solution(round=round, pairs=pairs, cost=cost, caviats=caviats)
+        return Solution(
+            round=round,
+            pairs=pairs,
+            cost=cost,
+            caviats=caviats,
+            optimal=d.get("optimal", True),
+        )
 
     @staticmethod
     def loads_csv(s: str, people: dict[str, Person], round: int) -> "Solution":

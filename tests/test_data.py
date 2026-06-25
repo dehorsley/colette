@@ -121,8 +121,17 @@ def solution(people):
 def test_solution_optimal_defaults_true(people):
     sol = Solution(round=1, pairs=frozenset(), cost=0, caviats={})
     assert sol.optimal is True
-    # the optimality flag is in-memory only; it must not leak into the TOML
+    # an optimal solution stays byte-compatible — no extra key written
     assert "optimal" not in sol.dumps()
+
+
+def test_solution_optimal_roundtrips_when_false(people):
+    pair = Pair(primary=people["Alice"], secondary=people["Bob"])
+    sol = Solution(round=1, pairs=frozenset({pair}), cost=5, caviats={}, optimal=False)
+    text = sol.dumps()
+    assert "optimal = false" in text
+    # the time-limited flag must survive a load (so it persists across reloads)
+    assert Solution.loads(text, people=people).optimal is False
 
 
 def test_solution_dumps(solution):
