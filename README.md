@@ -276,7 +276,7 @@ on the [Colette Github project](https://github.com/dehorsley/colette/issues).
 If you'd rather click than type, Colette ships with a small local web
 interface. From your working directory run:
 
-    colette serve
+    colette web
 
 This starts a server on <http://127.0.0.1:8080> (and opens it in your browser)
 that reads and writes the same `people.csv`, `round_*.toml` and `solution_*.csv`
@@ -305,9 +305,9 @@ From the GUI you can:
 
 Useful options:
 
-    colette serve --port 9000     # listen on a different port
-    colette serve --no-browser    # don't open a browser automatically
-    colette --path ./my-roulette serve
+    colette web --port 9000     # listen on a different port
+    colette web --no-browser    # don't open a browser automatically
+    colette --path ./my-roulette web
 
 The server binds to `127.0.0.1` (localhost) only and has no authentication, so
 it is intended to be run on your own machine. It uses only the Python standard
