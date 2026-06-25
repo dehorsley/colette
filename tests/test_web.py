@@ -251,6 +251,18 @@ def test_preview_emails_without_templates(store_with_round):
         api.preview_emails(store_with_round, 1)
 
 
+def test_preview_emails_without_config_errors(store):
+    # a solution can exist (csv) without a round config; rendering must raise a
+    # clean ApiError, not a bare FileNotFoundError (regression for csv-only rounds)
+    templates = store.path / "templates"
+    templates.mkdir()
+    (templates / "subject.txt").write_text("S")
+    (templates / "body.html").write_text("<p>{{ primary.name }}</p>")
+    (store.path / "solution_000001.csv").write_text("primary,secondary\nAlice,Bob\n")
+    with pytest.raises(api.ApiError):
+        api.preview_emails(store, 1)
+
+
 def test_preview_emails(store_with_round):
     templates = store_with_round.path / "templates"
     templates.mkdir()

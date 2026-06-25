@@ -71,10 +71,8 @@ function loading() {
 // Views are driven by the URL hash (#/people, #/round/57, …) so the browser
 // back/forward buttons work and views are linkable.
 const views = {};
-let currentView = "overview";
 
 function setActiveTab(view) {
-  currentView = view;
   for (const tab of tabsEl.querySelectorAll(".tab")) {
     tab.classList.toggle("active", tab.dataset.view === view);
   }
@@ -254,7 +252,6 @@ views.overview = async function () {
           body: {},
           timeoutMs: SOLVE_TIMEOUT_MS,
         });
-        trackOptimality(sol.round, sol);
         toast(
           `Generated ${sol.pairs.length} pairs for round ${sol.round}${
             solvedNote(sol)
@@ -298,19 +295,12 @@ const SOLVE_TIMEOUT_MS = 60000;
 const SOLVE_NOTICE_MS = 500;
 // After this long, tell the user it's a genuinely hard round.
 const SOLVE_HARD_MS = 10000;
-// Rounds whose current solution came back time-limited (not proven optimal),
-// tracked in-memory so the round page can flag it for this session.
-const timeLimitedRounds = new Set();
-// Note appended to a success toast when the solver hit its time limit.
+// Note appended to a success toast when the solver hit its time limit. The
+// optimal flag is persisted with the solution, so it survives reloads.
 function solvedNote(sol) {
   return sol && sol.optimal === false
     ? " — time-limited, may not be optimal"
     : "";
-}
-// Remember whether a round's freshly-computed solution was proven optimal.
-function trackOptimality(round, sol) {
-  if (sol && sol.optimal === false) timeLimitedRounds.add(round);
-  else timeLimitedRounds.delete(round);
 }
 
 const statusEl = document.getElementById("status");
@@ -590,9 +580,12 @@ function openEditPerson(person) {
   };
   function close() {
     document.removeEventListener("keydown", onKey);
+    globalThis.removeEventListener("hashchange", close);
     backdrop.remove();
   }
   document.addEventListener("keydown", onKey);
+  // dismiss the modal if the user navigates away (e.g. browser back/forward)
+  globalThis.addEventListener("hashchange", close);
   backdrop.addEventListener("click", (e) => {
     if (e.target === backdrop) close();
   });
@@ -738,10 +731,7 @@ function currentCfgBody() {
 }
 
 async function showRound(n, { silent = false } = {}) {
-  currentView = "rounds";
-  for (const tab of tabsEl.querySelectorAll(".tab")) {
-    tab.classList.toggle("active", tab.dataset.view === "rounds");
-  }
+  setActiveTab("rounds");
   const scrollPos = window.scrollY;
   if (!silent) loading();
 
@@ -780,10 +770,6 @@ async function showRound(n, { silent = false } = {}) {
     : null;
   editDirty = false; // fresh load → no unsaved changes
 
-  // the on-disk solution can't record optimality, so reflect what we learned
-  // when it was last solved this session
-  if (data.solution) data.solution.optimal = !timeLimitedRounds.has(n);
-
   const generateBtn = isNextUnsolved
     ? `<button class="btn primary" id="solve">Generate pairings</button>`
     : "";
@@ -801,7 +787,7 @@ async function showRound(n, { silent = false } = {}) {
         <h3 style="margin:0">Pairings</h3>
         <div class="row">${generateBtn}
           ${
-    data.solution
+    data.solution && data.config
       ? `<button class="btn" id="emails">Preview emails</button>`
       : ""
   }
@@ -827,14 +813,12 @@ async function showRound(n, { silent = false } = {}) {
         body: {},
         timeoutMs: SOLVE_TIMEOUT_MS,
       });
-      trackOptimality(sol.round, sol);
       toast(`Generated ${sol.pairs.length} pairs${solvedNote(sol)}`);
       showRound(sol.round, { silent: true });
     });
   });
 
   const refreshSolution = (sol) => {
-    trackOptimality(n, sol);
     document.getElementById("solution-area").innerHTML = renderSolution(sol, {
       canDiscourage: true,
     });
@@ -1283,7 +1267,6 @@ function renderConfigEditor(n, allNames, { isLatestSolved = false } = {}) {
           body: { regenerate: true },
           timeoutMs: SOLVE_TIMEOUT_MS,
         });
-        trackOptimality(n, sol);
         toast(
           `Saved & regenerated (${sol.pairs.length} pairs)${solvedNote(sol)}`,
         );
@@ -1411,7 +1394,10 @@ views.email = async function () {
     return;
   }
 
-  const solved = rounds.filter((r) => r.has_solution).map((r) => r.number);
+  // only rounds with a config can be rendered (templates need round_config.*)
+  const solved = rounds
+    .filter((r) => r.has_solution && r.has_config)
+    .map((r) => r.number);
   const selected = emailPreviewRound && solved.includes(emailPreviewRound)
     ? emailPreviewRound
     : (solved.length ? solved[solved.length - 1] : "");

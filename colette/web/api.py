@@ -611,6 +611,13 @@ def preview_emails(store: FileStorage, n: int) -> dict:
     if solution is None:
         raise ApiError(f"No solution for round {n}", status=404)
 
+    # Older rounds may have a solution (solution_*.csv) but no round config to
+    # render round_config.* from; surface that clearly rather than crashing.
+    if not _config_path(store, n).exists():
+        raise ApiError(
+            f"Round {n} has no configuration, so its emails can't be rendered.",
+            status=400,
+        )
     config = store.load_round_config(n, people)
 
     from jinja2 import Environment, FileSystemLoader
