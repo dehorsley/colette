@@ -1,25 +1,49 @@
+/* Self-hosted Fraunces (SIL Open Font License 1.1 — see /fonts/OFL.txt).
+   One variable file per style covers weights 400–900 plus the SOFT and WONK
+   axes, which we use for a chunky, slightly wonky display face. */
+@font-face {
+  font-family: "Fraunces";
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url("/fonts/fraunces-latin.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Fraunces";
+  font-style: italic;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url("/fonts/fraunces-italic-latin.woff2") format("woff2");
+}
+
+/* Each colour is light-dark(<light>, <dark>); the active side follows
+   `color-scheme`, which defaults to the OS preference and is forced to one
+   side by the [data-theme] rules below (driven by the header toggle). */
 :root {
-  --bg: #f6f1ea;
-  --surface: #ffffff;
-  --surface-2: #faf6f0;
-  --border: #e4d9c9;
-  --border-strong: #d2c2ab;
-  --text: #2c241c;
-  --text-muted: #7a6c5b;
-  --accent: #7b4a2d;
-  --accent-soft: #f0e2d4;
-  --accent-text: #5a3621;
-  --ok: #2f7d5b;
-  --ok-soft: #e2f1e9;
-  --warn: #9a6a18;
-  --warn-soft: #f6ecd6;
-  --danger: #a93b2f;
-  --danger-soft: #f6e2df;
-  --info: #2f5d8a;
-  --info-soft: #e2ebf4;
+  color-scheme: light dark;
+  --bg: light-dark(#f4f2ee, #161512);
+  --surface: light-dark(#ffffff, #232019);
+  --surface-2: light-dark(#eceae5, #2f2b24);
+  --border: light-dark(#dad4ca, #423d33);
+  --border-strong: light-dark(#b5ac9c, #5f5849);
+  --text: light-dark(#1f1b16, #f1ede6);
+  --text-muted: light-dark(#6b635a, #aca395);
+  --accent: light-dark(#8a4a28, #d4925f);
+  --accent-soft: light-dark(#f1e3d5, #382a1d);
+  --accent-text: light-dark(#6c3b20, #ecbb91);
+  --accent-fg: light-dark(#ffffff, #241a10);
+  --ok: light-dark(#176f45, #5dc28b);
+  --ok-soft: light-dark(#e0f0e8, #142a1f);
+  --warn: light-dark(#8a5d12, #dba751);
+  --warn-soft: light-dark(#f4ead2, #2f2613);
+  --danger: light-dark(#a8352a, #e88074);
+  --danger-soft: light-dark(#f6e1dd, #331d19);
+  --info: light-dark(#285a87, #79abe2);
+  --info-soft: light-dark(#e1e9f3, #16273a);
+  --shadow-color: light-dark(rgba(60, 40, 20, 0.1), rgba(0, 0, 0, 0.5));
+  --shadow: 0 1px 2px var(--shadow-color);
   --radius: 10px;
   --radius-sm: 7px;
-  --shadow: 0 1px 2px rgba(60, 40, 20, 0.06);
   --font:
     "Segoe UI",
     -apple-system,
@@ -29,30 +53,23 @@
     Arial,
     sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  /* chunky, characterful display face for the wordmark and headings, with a
+     warm old-style serif fallback if Fraunces hasn't loaded yet */
+  --display:
+    "Fraunces",
+    "Hoefler Text",
+    "Palatino Linotype",
+    Palatino,
+    Georgia,
+    "Times New Roman",
+    serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1c1813;
-    --surface: #26211b;
-    --surface-2: #2d2720;
-    --border: #3c342a;
-    --border-strong: #4d4234;
-    --text: #ece3d6;
-    --text-muted: #a99a86;
-    --accent: #c98a5e;
-    --accent-soft: #3a2c20;
-    --accent-text: #e0b896;
-    --ok: #6cc197;
-    --ok-soft: #21342a;
-    --warn: #d6a14b;
-    --warn-soft: #352c19;
-    --danger: #e07d72;
-    --danger-soft: #38241f;
-    --info: #82aede;
-    --info-soft: #1f2c3a;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-  }
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 * {
@@ -71,9 +88,13 @@ body {
 h1,
 h2,
 h3 {
+  font-family: var(--display);
   font-weight: 600;
+  /* Fraunces axes: auto optical sizing + a touch of wonk for character */
+  font-optical-sizing: auto;
+  font-variation-settings: "SOFT" 0, "WONK" 1;
   margin: 0 0 0.6rem;
-  line-height: 1.25;
+  line-height: 1.2;
 }
 h1 {
   font-size: 1.4rem;
@@ -89,40 +110,160 @@ a {
   color: var(--info);
 }
 
+/* Clear, on-brand keyboard focus indicator for controls without a custom one
+   (inputs keep their box-shadow focus, so they're intentionally excluded). */
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible,
+.tab:focus-visible,
+.round-cell:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 /* ---- top bar ---- */
 .topbar {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0.7rem 1.25rem;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 10px var(--shadow-color);
+}
+/* a soft coffee accent strip that fades out to the right */
+.topbar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    var(--accent),
+    color-mix(in srgb, var(--accent), transparent 70%) 45%,
+    transparent 80%
+  );
 }
 .brand {
   display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 0.55rem;
 }
-.cup {
-  font-size: 1.4rem;
+.logo-link {
+  display: inline-flex;
+  border-radius: 8px;
+  text-decoration: none;
+}
+.logo {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px var(--shadow-color);
+}
+/* steam that waves: each wisp sways from where it leaves the cup, and the two
+   are kept out of phase so they ripple independently */
+.logo .steam {
+  transform-box: fill-box;
+  transform-origin: bottom center;
+  animation: steam-wave 2.6s ease-in-out infinite;
+}
+.logo .steam-2 {
+  animation-delay: -1.3s;
+}
+@keyframes steam-wave {
+  0% {
+    opacity: 0.35;
+    transform: translateX(0.6px) rotate(-10deg);
+  }
+  25% {
+    opacity: 0.7;
+    transform: translateX(-0.5px) rotate(2deg);
+  }
+  50% {
+    opacity: 0.95;
+    transform: translateX(0.6px) rotate(10deg);
+  }
+  75% {
+    opacity: 0.7;
+    transform: translateX(-0.5px) rotate(2deg);
+  }
+  100% {
+    opacity: 0.35;
+    transform: translateX(0.6px) rotate(-10deg);
+  }
+}
+/* a little wiggle when you point at it */
+.logo-link:hover .logo {
+  animation: wiggle 0.45s ease-in-out;
+}
+@keyframes wiggle {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  30% {
+    transform: rotate(-8deg);
+  }
+  65% {
+    transform: rotate(6deg);
+  }
 }
 .brand-name {
+  margin: 0;
+  font-family: var(--display);
+  font-style: italic;
   font-weight: 700;
-  font-size: 1.2rem;
+  font-size: 1.55rem;
+  letter-spacing: 0.005em;
   color: var(--accent-text);
 }
 .brand-tag {
+  font-family: var(--display);
+  font-style: italic;
   color: var(--text-muted);
   font-size: 0.85rem;
+}
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
 }
 .path {
   font-family: var(--mono);
   font-size: 0.78rem;
   color: var(--text-muted);
-  max-width: 50%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.theme-toggle {
+  appearance: none;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.theme-toggle:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.theme-toggle svg {
+  width: 18px;
+  height: 18px;
 }
 
 /* ---- tabs ---- */
@@ -141,11 +282,14 @@ a {
   font: inherit;
   color: var(--text-muted);
   cursor: pointer;
-  border-bottom: 2px solid transparent;
+  border-bottom: 2.5px solid transparent;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   margin-bottom: -1px;
+  transition: color 0.12s, background 0.12s;
 }
 .tab:hover {
   color: var(--text);
+  background: var(--surface-2);
 }
 .tab.active {
   color: var(--accent-text);
@@ -167,6 +311,17 @@ a {
   padding: 1.1rem 1.25rem;
   margin-bottom: 1.1rem;
   box-shadow: var(--shadow);
+  animation: card-in 0.2s ease both;
+}
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .card h2,
 .card h3 {
@@ -188,6 +343,18 @@ a {
 .small {
   font-size: 0.85rem;
 }
+/* Visible to screen readers only (e.g. a label for an icon-only column). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 
 /* ---- metric cards ---- */
 .metrics {
@@ -196,7 +363,12 @@ a {
   gap: 0.75rem;
 }
 .metric {
-  background: var(--surface-2);
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--accent-soft), var(--surface-2) 40%),
+    var(--surface-2)
+  );
+  border-left: 3px solid var(--accent);
   border-radius: var(--radius-sm);
   padding: 0.85rem 1rem;
 }
@@ -208,8 +380,9 @@ a {
 }
 .metric .value {
   font-size: 1.6rem;
-  font-weight: 600;
+  font-weight: 700;
   margin-top: 0.15rem;
+  color: var(--accent-text);
 }
 
 /* ---- buttons ---- */
@@ -223,7 +396,7 @@ button.btn,
   color: var(--text);
   padding: 0.45rem 0.85rem;
   border-radius: var(--radius-sm);
-  transition: background 0.12s, transform 0.05s;
+  transition: background 0.12s, transform 0.08s, box-shadow 0.12s, filter 0.12s;
 }
 .btn:hover {
   background: var(--surface-2);
@@ -236,13 +409,26 @@ button.btn,
   cursor: not-allowed;
 }
 .btn.primary {
-  background: var(--accent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--accent), white 10%),
+    var(--accent)
+  );
   border-color: var(--accent);
-  color: #fff;
+  color: var(--accent-fg);
+  box-shadow:
+    0 1px 2px var(--shadow-color),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 .btn.primary:hover {
-  filter: brightness(1.06);
-  background: var(--accent);
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+  box-shadow:
+    0 4px 12px var(--shadow-color),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+.btn.primary:active {
+  transform: translateY(0);
 }
 .btn.danger {
   border-color: var(--danger);
@@ -289,6 +475,10 @@ textarea:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
+}
+::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
 }
 label.field {
   display: flex;
@@ -366,15 +556,20 @@ table.grid tbody tr:hover {
   gap: 0.6rem;
 }
 .round-cell {
+  display: block;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 0.7rem 0.8rem;
   cursor: pointer;
   background: var(--surface);
-  transition: border-color 0.12s, transform 0.05s;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.12s, transform 0.12s, box-shadow 0.12s;
 }
 .round-cell:hover {
   border-color: var(--accent);
+  transform: translateY(-2px) rotate(-0.6deg);
+  box-shadow: 0 5px 16px var(--shadow-color);
 }
 .round-cell .num {
   font-weight: 600;
@@ -416,6 +611,12 @@ table.grid tbody tr:hover {
   margin-top: 1.1rem;
   padding-top: 0.9rem;
   border-top: 1px solid var(--border);
+}
+/* undo/redo sit on the left; everything else stays right */
+.undo-group {
+  display: flex;
+  gap: 0.4rem;
+  margin-right: auto;
 }
 .dirty-hint {
   color: var(--warn);
@@ -475,6 +676,15 @@ table.grid tbody tr:hover {
 table.grid tr.clickable {
   cursor: pointer;
 }
+/* A link inside a clickable row: keeps keyboard/screen-reader access without
+   changing the row's appearance (the whole row stays clickable for mouse). */
+.cell-link {
+  color: inherit;
+  text-decoration: none;
+}
+.cell-link:hover {
+  text-decoration: underline;
+}
 
 /* ---- chips (removals / overrides editor) ---- */
 .chips {
@@ -487,8 +697,8 @@ table.grid tr.clickable {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
   border-radius: 999px;
   padding: 0.22rem 0.6rem;
   font-size: 0.85rem;
@@ -568,6 +778,7 @@ table.grid tr.clickable {
   justify-content: center;
   z-index: 50;
   padding: 1rem;
+  animation: fade-in 0.18s ease both;
 }
 .modal {
   background: var(--surface);
@@ -576,6 +787,25 @@ table.grid tr.clickable {
   padding: 1.25rem;
   width: min(420px, 100%);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  animation: pop-in 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 .modal h3 {
   margin-top: 0;
@@ -629,7 +859,7 @@ details > summary {
   padding: 0.5rem 0.95rem;
   border-radius: 999px;
   font-size: 0.9rem;
-  box-shadow: var(--shadow);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s, transform 0.2s;
@@ -668,6 +898,7 @@ details > summary {
   padding: 0.6rem 1rem;
   border-radius: var(--radius-sm);
   font-size: 0.9rem;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s, transform 0.2s;
@@ -680,4 +911,19 @@ details > summary {
 .toast.error {
   background: var(--danger);
   color: #fff;
+}
+
+/* Respect users who prefer reduced motion: drop the lifts and transitions. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  .btn.primary:hover,
+  .round-cell:hover {
+    transform: none;
+  }
 }

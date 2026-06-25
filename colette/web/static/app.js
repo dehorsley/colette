@@ -56,6 +56,14 @@ async function api(path, { method = "GET", body, timeoutMs } = {}) {
         "Request timed out — the server is still working; reload to check.",
       );
     }
+    // fetch() rejects with a TypeError when it can't reach the server at all
+    // (connection refused, process stopped, network down).
+    if (e instanceof TypeError) {
+      throw new Error(
+        "Can't reach the colette server — it may have been shut down. " +
+          "Restart it in your terminal (colette web), then reload this page.",
+      );
+    }
     throw e;
   } finally {
     clearTimeout(timer);
@@ -64,7 +72,31 @@ async function api(path, { method = "GET", body, timeoutMs } = {}) {
 
 function loading() {
   main.innerHTML =
-    `<div class="empty"><span class="spinner"></span> Loading…</div>`;
+    `<div class="empty"><span class="spinner"></span> Brewing…</div>`;
+}
+
+const prefersReducedMotion = () =>
+  globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+
+// Count the dashboard numbers up from zero — a small bit of delight on load.
+// Values are already rendered at their final figure, so this is purely cosmetic
+// and is skipped entirely for reduced-motion users.
+function animateCounts(scope = main) {
+  if (prefersReducedMotion()) return;
+  for (const el of scope.querySelectorAll(".metric .value[data-count]")) {
+    const target = Number(el.dataset.count);
+    if (!Number.isFinite(target)) continue;
+    const start = performance.now();
+    const dur = 650;
+    el.textContent = "0";
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      el.textContent = String(Math.round(target * eased));
+      if (t < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
 }
 
 // ---------------------------------------------------------------- routing
@@ -74,7 +106,10 @@ const views = {};
 
 function setActiveTab(view) {
   for (const tab of tabsEl.querySelectorAll(".tab")) {
-    tab.classList.toggle("active", tab.dataset.view === view);
+    const active = tab.dataset.view === view;
+    tab.classList.toggle("active", active);
+    if (active) tab.setAttribute("aria-current", "page");
+    else tab.removeAttribute("aria-current");
   }
 }
 
@@ -123,6 +158,52 @@ async function refreshPath() {
   } catch {
     /* ignore */
   }
+}
+
+// ---------------------------------------------------------------- theme
+// The CSS palette follows `color-scheme`; this toggle forces a side via a
+// data-theme attribute on <html> and remembers the choice. No stored choice
+// means "follow the OS" (the inline <head> script + CSS handle that).
+const SUN_ICON =
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg>`;
+const MOON_ICON =
+  `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8z"/></svg>`;
+const themeMedia = globalThis.matchMedia("(prefers-color-scheme: dark)");
+
+function effectiveTheme() {
+  const t = document.documentElement.dataset.theme;
+  if (t === "light" || t === "dark") return t;
+  return themeMedia.matches ? "dark" : "light";
+}
+
+function updateThemeToggle() {
+  const btn = document.getElementById("theme-toggle");
+  if (!btn) return;
+  const dark = effectiveTheme() === "dark";
+  btn.innerHTML = dark ? SUN_ICON : MOON_ICON;
+  const label = dark ? "Switch to light mode" : "Switch to dark mode";
+  btn.title = label;
+  btn.setAttribute("aria-label", label);
+}
+
+function setupThemeToggle() {
+  const btn = document.getElementById("theme-toggle");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    const next = effectiveTheme() === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    try {
+      localStorage.setItem("colette-theme", next);
+    } catch {
+      /* ignore (private mode, etc.) */
+    }
+    updateThemeToggle();
+  });
+  // Track the OS preference only while the user hasn't made an explicit choice.
+  themeMedia.addEventListener("change", () => {
+    if (!document.documentElement.dataset.theme) updateThemeToggle();
+  });
+  updateThemeToggle();
 }
 
 // ================================================================ OVERVIEW
@@ -184,7 +265,7 @@ views.overview = async function () {
         ? `<span class="badge warn">not generated</span>`
         : `<span class="badge muted">—</span>`;
       return `<tr data-round="${r.number}" class="clickable">
-        <td>Round ${r.number}</td>
+        <td><a class="cell-link" href="#/round/${r.number}">Round ${r.number}</a></td>
         <td class="muted small">${r.date ? esc(r.date) : ""}</td>
         <td>${badge}</td></tr>`;
     })
@@ -194,10 +275,10 @@ views.overview = async function () {
     <div class="card">
       <h2>Overview</h2>
       <div class="metrics">
-        <div class="metric"><div class="label">Active people</div><div class="value">${s.people_active}</div></div>
-        <div class="metric"><div class="label">Total people</div><div class="value">${s.people_total}</div></div>
-        <div class="metric"><div class="label">Rounds run</div><div class="value">${s.rounds_solved}</div></div>
-        <div class="metric"><div class="label">Next round</div><div class="value">${s.next_round}</div></div>
+        <div class="metric"><div class="label">Active people</div><div class="value" data-count="${s.people_active}">${s.people_active}</div></div>
+        <div class="metric"><div class="label">Total people</div><div class="value" data-count="${s.people_total}">${s.people_total}</div></div>
+        <div class="metric"><div class="label">Rounds run</div><div class="value" data-count="${s.rounds_solved}">${s.rounds_solved}</div></div>
+        <div class="metric"><div class="label">Next round</div><div class="value" data-count="${s.next_round}">${s.next_round}</div></div>
       </div>
     </div>
     ${actionCard}
@@ -224,6 +305,8 @@ views.overview = async function () {
     </div>`
       : ""
   }`;
+
+  animateCounts();
 
   main.querySelector('[data-act="goto-people"]')?.addEventListener(
     "click",
@@ -421,10 +504,14 @@ views.people = async function () {
       }</td>
         <td class="cell-active"><input type="checkbox" class="toggle-active" ${
         p.active ? "checked" : ""
-      } aria-label="active"></td>
+      } aria-label="${esc(p.name)} is active"></td>
         <td style="text-align:right;white-space:nowrap">
-          <button class="btn-icon edit" title="Edit">&#9998;</button>
-          <button class="btn-icon danger del" title="Delete">&#128465;</button>
+          <button class="btn-icon edit" title="Edit" aria-label="Edit ${
+        esc(p.name)
+      }">&#9998;</button>
+          <button class="btn-icon danger del" title="Delete" aria-label="Delete ${
+        esc(p.name)
+      }">&#128465;</button>
         </td>
       </tr>`,
     )
@@ -434,7 +521,7 @@ views.people = async function () {
     <div class="card">
       <h2>People <span class="muted small">(${people.length})</span></h2>
       <table class="grid" id="people-table">
-        <thead><tr><th>Name</th><th>Organisation</th><th>Email</th><th>Active</th><th></th></tr></thead>
+        <thead><tr><th>Name</th><th>Organisation</th><th>Email</th><th>Active</th><th><span class="sr-only">Actions</span></th></tr></thead>
         <tbody>${rows || ""}</tbody>
       </table>
       ${
@@ -652,11 +739,11 @@ views.rounds = async function () {
         badges.push(`<span class="badge muted">no config</span>`);
       }
       return `
-        <div class="round-cell" data-round="${r.number}">
+        <a class="round-cell" href="#/round/${r.number}">
           <div class="num">Round ${r.number}</div>
           <div class="date">${r.date ? esc(r.date) : "&nbsp;"}</div>
           <div class="badges">${badges.join("")}</div>
-        </div>`;
+        </a>`;
     })
     .join("");
 
@@ -701,9 +788,6 @@ views.rounds = async function () {
     "click",
     () => gotoRound(status.next_round),
   );
-  main.querySelectorAll(".round-cell").forEach((c) =>
-    c.addEventListener("click", () => gotoRound(Number(c.dataset.round)))
-  );
 };
 
 // editable config state for the round detail view
@@ -729,6 +813,58 @@ function currentCfgBody() {
     costs: edit.costs,
   };
 }
+
+// ---- undo / redo for the config editor ------------------------------------
+// A stack of edit snapshots. Index 0 is the last loaded/saved state, so undo
+// only ever rewinds *unsaved* changes — it never reaches past what's on disk.
+let editHistory = [];
+let editHistoryIndex = -1;
+let rerenderConfig = null; // set by renderConfigEditor while a round is open
+
+function resetEditHistory() {
+  editHistory = edit ? [structuredClone(edit)] : [];
+  editHistoryIndex = edit ? 0 : -1;
+  editDirty = false;
+}
+function pushEditHistory() {
+  if (!edit) return;
+  editHistory = editHistory.slice(0, editHistoryIndex + 1); // drop redo branch
+  editHistory.push(structuredClone(edit));
+  editHistoryIndex = editHistory.length - 1;
+  editDirty = editHistoryIndex > 0;
+}
+function restoreEditSnapshot(index) {
+  if (index < 0 || index >= editHistory.length) return;
+  editHistoryIndex = index;
+  edit = structuredClone(editHistory[index]);
+  editDirty = editHistoryIndex > 0;
+  rerenderConfig?.();
+}
+function undoEdit() {
+  if (editHistoryIndex > 0) restoreEditSnapshot(editHistoryIndex - 1);
+}
+function redoEdit() {
+  if (editHistoryIndex < editHistory.length - 1) {
+    restoreEditSnapshot(editHistoryIndex + 1);
+  }
+}
+
+// Ctrl/⌘+Z to undo, Ctrl/⌘+Shift+Z (or Ctrl+Y) to redo — but only while a round
+// config is on screen, and never while a text field is focused so its own
+// native undo keeps working.
+globalThis.addEventListener("keydown", (e) => {
+  if (!(e.metaKey || e.ctrlKey)) return;
+  const key = e.key.toLowerCase();
+  const undo = key === "z" && !e.shiftKey;
+  const redo = (key === "z" && e.shiftKey) || key === "y";
+  if (!undo && !redo) return;
+  if (!edit || !document.getElementById("config-area")) return;
+  const ae = document.activeElement;
+  if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")) return;
+  e.preventDefault();
+  if (redo) redoEdit();
+  else undoEdit();
+});
 
 async function showRound(n, { silent = false } = {}) {
   setActiveTab("rounds");
@@ -768,7 +904,7 @@ async function showRound(n, { silent = false } = {}) {
       costs: { ...data.config.costs },
     }
     : null;
-  editDirty = false; // fresh load → no unsaved changes
+  resetEditHistory(); // fresh load → clear undo history and the dirty flag
 
   const generateBtn = isNextUnsolved
     ? `<button class="btn primary" id="solve">Generate pairings</button>`
@@ -781,7 +917,7 @@ async function showRound(n, { silent = false } = {}) {
         <button class="btn small" id="back">All rounds</button>
       </div>
     </div>
-    <div id="config-area"></div>
+    <div id="config-area" class="card"></div>
     <div class="card">
       <div class="row spread">
         <h3 style="margin:0">Pairings</h3>
@@ -875,6 +1011,7 @@ async function showRound(n, { silent = false } = {}) {
           timeoutMs: SOLVE_TIMEOUT_MS,
         });
         refreshSolution(sol);
+        resetEditHistory(); // change was just saved → it's the new baseline
         renderConfigEditor(n, allNames, { isLatestSolved });
         toast(`Pushed ${a} and ${b} apart${solvedNote(sol)}`);
       });
@@ -922,7 +1059,9 @@ function renderSolution(sol, { canDiscourage = false } = {}) {
             esc(p.primary.name)
           }" data-b="${
             esc(p.secondary.name)
-          }" title="Discourage this pairing and try again">&times;</button>`
+          }" title="Discourage this pairing and try again" aria-label="Push ${
+            esc(p.primary.name)
+          } and ${esc(p.secondary.name)} apart and try again">&times;</button>`
           : ""
       }
         ${
@@ -984,7 +1123,9 @@ function emailCard(m) {
         <div class="subject">${esc(m.subject)}</div>
         <div class="muted">To: ${to}</div>
       </div>
-      <iframe sandbox="allow-same-origin" srcdoc="${esc(m.body)}"></iframe>
+      <iframe sandbox="allow-same-origin" title="Email body preview for ${
+    esc(m.to.map((r) => r.name).join(", "))
+  }" srcdoc="${esc(m.body)}"></iframe>
     </div>`;
 }
 
@@ -1005,7 +1146,7 @@ function renderConfigEditor(n, allNames, { isLatestSolved = false } = {}) {
   const area = document.getElementById("config-area");
   if (!edit) {
     area.innerHTML =
-      `<div class="card"><p class="muted">No configuration for this round.</p></div>`;
+      `<p class="muted" style="margin:0">No configuration for this round.</p>`;
     return;
   }
 
@@ -1029,7 +1170,9 @@ function renderConfigEditor(n, allNames, { isLatestSolved = false } = {}) {
       (r, i) => `
       <span class="chip">${esc(r.name)}${
         r.until ? ` <span class="muted">until ${esc(r.until)}</span>` : ""
-      }<button data-remove-idx="${i}" title="Remove">&times;</button></span>`,
+      }<button data-remove-idx="${i}" title="Remove" aria-label="Stop removing ${
+        esc(r.name)
+      }">&times;</button></span>`,
     )
     .join("");
 
@@ -1039,7 +1182,9 @@ function renderConfigEditor(n, allNames, { isLatestSolved = false } = {}) {
       <span class="chip">${
         esc(o.pair[0])
       } <span class="muted">may sit out</span>
-      <button data-override-idx="${o.i}" title="Remove">&times;</button></span>`,
+      <button data-override-idx="${o.i}" title="Remove" aria-label="Stop ${
+        esc(o.pair[0])
+      } sitting out">&times;</button></span>`,
     )
     .join("");
 
@@ -1050,7 +1195,9 @@ function renderConfigEditor(n, allNames, { isLatestSolved = false } = {}) {
       <span class="muted">${
         o.weight > 0 ? "avoid" : "prefer"
       } (${o.weight})</span>
-      <button data-override-idx="${o.i}" title="Remove">&times;</button></span>`,
+      <button data-override-idx="${o.i}" title="Remove" aria-label="Remove override for ${
+        esc(o.pair[0])
+      } and ${esc(o.pair[1])}">&times;</button></span>`,
     )
     .join("");
 
@@ -1067,7 +1214,6 @@ function renderConfigEditor(n, allNames, { isLatestSolved = false } = {}) {
   const saveLabel = isLatestSolved ? "Save &amp; regenerate" : "Save config";
 
   area.innerHTML = `
-    <div class="card">
       ${datalist}
       <h3 style="margin:0 0 .2rem">Configuration</h3>
       <div class="row" style="margin-top:.6rem;align-items:flex-end">
@@ -1085,14 +1231,14 @@ function renderConfigEditor(n, allNames, { isLatestSolved = false } = {}) {
     removeChips || '<span class="muted small">Nobody removed.</span>'
   }</div>
         <div class="row config-add">
-          <input list="all-people" id="rm-name" placeholder="search a person…" style="min-width:180px">
-          <select id="rm-until-type">
+          <input list="all-people" id="rm-name" placeholder="search a person…" aria-label="Search for a person to remove" style="min-width:180px">
+          <select id="rm-until-type" aria-label="When the removal expires">
             <option value="">until further notice</option>
             <option value="date">until a date…</option>
             <option value="round">until a round #…</option>
           </select>
-          <input type="date" id="rm-until-date" style="display:none">
-          <input type="number" id="rm-until-round" min="1" placeholder="round #" style="display:none;width:110px">
+          <input type="date" id="rm-until-date" aria-label="Removal expiry date" style="display:none">
+          <input type="number" id="rm-until-round" min="1" placeholder="round #" aria-label="Removal expiry round number" style="display:none;width:110px">
           <button class="btn small" id="rm-add">Remove person</button>
         </div>
       </div>
@@ -1103,7 +1249,7 @@ function renderConfigEditor(n, allNames, { isLatestSolved = false } = {}) {
     sitOutChips || '<span class="muted small">Nobody flagged to sit out.</span>'
   }</div>
         <div class="row config-add">
-          <input list="all-people" id="sit-name" placeholder="search a person…" style="min-width:180px">
+          <input list="all-people" id="sit-name" placeholder="search a person…" aria-label="Search for a person to allow sitting out" style="min-width:180px">
           <button class="btn small" id="sit-add">Allow to sit out</button>
         </div>
       </div>
@@ -1114,9 +1260,9 @@ function renderConfigEditor(n, allNames, { isLatestSolved = false } = {}) {
     overrideChips || '<span class="muted small">No overrides.</span>'
   }</div>
         <div class="row config-add">
-          <input list="all-people" id="ov-a" placeholder="first person…" style="min-width:150px">
-          <input list="all-people" id="ov-b" placeholder="second person…" style="min-width:150px">
-          <select id="ov-dir"><option value="avoid">keep apart</option><option value="prefer">pair up</option></select>
+          <input list="all-people" id="ov-a" placeholder="first person…" aria-label="First person in the pairing" style="min-width:150px">
+          <input list="all-people" id="ov-b" placeholder="second person…" aria-label="Second person in the pairing" style="min-width:150px">
+          <select id="ov-dir" aria-label="Pairing preference"><option value="avoid">keep apart</option><option value="prefer">pair up</option></select>
           <button class="btn small" id="ov-add">Add override</button>
         </div>
       </div>
@@ -1127,16 +1273,28 @@ function renderConfigEditor(n, allNames, { isLatestSolved = false } = {}) {
       </details>
 
       <div class="config-footer">
+        <div class="undo-group">
+          <button class="btn small" id="undo-config" title="Undo (Ctrl/⌘+Z)" aria-label="Undo"${
+    editHistoryIndex > 0 ? "" : " disabled"
+  }>↶ Undo</button>
+          <button class="btn small" id="redo-config" title="Redo (Ctrl/⌘+Shift+Z)" aria-label="Redo"${
+    editHistoryIndex < editHistory.length - 1 ? "" : " disabled"
+  }>↷ Redo</button>
+        </div>
         <span class="dirty-hint"${
     editDirty ? "" : " hidden"
   }>Unsaved changes</span>
         <button class="btn primary" id="save-config"${
     editDirty ? "" : " disabled"
   }>${saveLabel}</button>
-      </div>
-    </div>`;
+      </div>`;
 
   const rerender = () => renderConfigEditor(n, allNames, { isLatestSolved });
+  rerenderConfig = rerender; // let undo/redo re-render the editor
+
+  area.querySelector("#undo-config")?.addEventListener("click", undoEdit);
+  area.querySelector("#redo-config")?.addEventListener("click", redoEdit);
+
   const markDirty = () => {
     editDirty = true;
     const btn = area.querySelector("#save-config");
@@ -1147,15 +1305,21 @@ function renderConfigEditor(n, allNames, { isLatestSolved = false } = {}) {
 
   area.querySelector("#cfg-date").addEventListener("change", (e) => {
     edit.date = e.target.value;
+    pushEditHistory();
     markDirty();
   });
+  // live updates as you type; one undo step recorded when the field commits
   area.querySelector("#cfg-notes").addEventListener("input", (e) => {
     edit.notes = e.target.value;
     markDirty();
   });
+  area.querySelector("#cfg-notes").addEventListener("change", () => {
+    pushEditHistory();
+  });
   area.querySelectorAll("[data-cost]").forEach((inp) =>
     inp.addEventListener("change", (e) => {
       edit.costs[e.target.dataset.cost] = parseInt(e.target.value, 10) || 0;
+      pushEditHistory();
       markDirty();
     })
   );
@@ -1194,7 +1358,7 @@ function renderConfigEditor(n, allNames, { isLatestSolved = false } = {}) {
       until = parseInt(rv, 10);
     }
     edit.removes.push({ name, until });
-    editDirty = true;
+    pushEditHistory();
     rerender();
   });
 
@@ -1214,7 +1378,7 @@ function renderConfigEditor(n, allNames, { isLatestSolved = false } = {}) {
     const cnp = parseInt(edit.costs.cost_of_not_pairing, 10) || 50;
     const weight = cnp > SIT_OUT_RESIDUAL ? SIT_OUT_RESIDUAL - cnp : -cnp;
     edit.overrides.push({ pair: [name, name], weight });
-    editDirty = true;
+    pushEditHistory();
     rerender();
   });
 
@@ -1234,21 +1398,21 @@ function renderConfigEditor(n, allNames, { isLatestSolved = false } = {}) {
       pair: [a, b],
       weight: dir === "avoid" ? 1000 : -1000,
     });
-    editDirty = true;
+    pushEditHistory();
     rerender();
   });
 
   area.querySelectorAll("[data-remove-idx]").forEach((b) =>
     b.addEventListener("click", () => {
       edit.removes.splice(Number(b.dataset.removeIdx), 1);
-      editDirty = true;
+      pushEditHistory();
       rerender();
     })
   );
   area.querySelectorAll("[data-override-idx]").forEach((b) =>
     b.addEventListener("click", () => {
       edit.overrides.splice(Number(b.dataset.overrideIdx), 1);
-      editDirty = true;
+      pushEditHistory();
       rerender();
     })
   );
@@ -1322,7 +1486,7 @@ views.history = async function () {
     <div class="card">
       <h3>Partner lookup</h3>
       <div class="row">
-        <select id="person-select"><option value="">— choose a person —</option>${personOptions}</select>
+        <select id="person-select" aria-label="Person to look up"><option value="">— choose a person —</option>${personOptions}</select>
       </div>
       <div id="partner-result"></div>
     </div>
@@ -1433,7 +1597,7 @@ views.email = async function () {
   }</textarea></label>
         </div>
         <div class="preview-col">
-          <h4>Preview <span class="muted small">(example participants, live)</span></h4>
+          <h3>Preview <span class="muted small">(example participants, live)</span></h3>
           <div id="live-error" class="dirty-hint" style="color:var(--danger)" hidden></div>
           <div id="live-preview"></div>
         </div>
@@ -1446,7 +1610,7 @@ views.email = async function () {
       ? `<details style="margin-top:1rem">
         <summary>Preview a generated round's real emails (uses saved templates)</summary>
         <div class="row" style="margin:.6rem 0">
-          <select id="prev-round">${roundOptions}</select>
+          <select id="prev-round" aria-label="Round to preview">${roundOptions}</select>
           <button class="btn" id="prev-btn">Preview round</button>
         </div>
         <div id="email-area"></div>
@@ -1470,7 +1634,7 @@ views.email = async function () {
           <div class="subject"></div>
           <div class="muted live-to"></div>
         </div>
-        <iframe sandbox="allow-same-origin"></iframe>
+        <iframe sandbox="allow-same-origin" title="Live email body preview"></iframe>
       </div>`;
     const f = liveEl.querySelector("iframe");
     f.addEventListener("load", () => {
@@ -1567,5 +1731,6 @@ views.email = async function () {
 };
 
 // ---------------------------------------------------------------- boot
+setupThemeToggle();
 refreshPath();
 handleRoute();
