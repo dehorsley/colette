@@ -172,6 +172,12 @@ def pair_from_path(path: PathLike):
     store.store_solution(solution, type="csv")
 
 
+def serve(path: PathLike, host: str = "127.0.0.1", port: int = 8080, open_browser=True):
+    from .web import serve as serve_web
+
+    serve_web(path=path, host=host, port=port, open_browser=open_browser)
+
+
 def main():
     parser = argparse.ArgumentParser(
         "colette",
@@ -185,7 +191,11 @@ def main():
         help="path to directory containing people and round data (default '.')",
         default=".",
     )
-    subparsers = parser.add_subparsers(title="commands")
+    # `serve` is a hidden alias of `web`, so it is left out of the metavar.
+    subparsers = parser.add_subparsers(
+        title="commands",
+        metavar="{new,pair,email,web,version}",
+    )
 
     new_parser = subparsers.add_parser(
         "new",
@@ -244,6 +254,43 @@ def main():
     )
 
     email_parser.set_defaults(func=email)
+
+    def add_web_args(p):
+        p.add_argument(
+            "--host",
+            default="127.0.0.1",
+            help="host/interface to bind to (default 127.0.0.1)",
+        )
+        p.add_argument(
+            "--port",
+            type=int,
+            default=8080,
+            help="port to listen on (default 8080)",
+        )
+        p.add_argument(
+            "--no-browser",
+            dest="open_browser",
+            default=True,
+            action="store_false",
+            help="don't open a browser window on start",
+        )
+        p.set_defaults(func=serve)
+
+    web_parser = subparsers.add_parser(
+        "web",
+        help="open the web GUI",
+        description=dedent("""\
+            open a local web GUI for managing people, rounds, pairings and
+            email previews. Operates on the same files as the other commands.
+            """),
+    )
+    add_web_args(web_parser)
+
+    # `serve` is kept as a hidden alias of `web` for backwards compatibility.
+    # Omitting `help` keeps it out of the command listing (and the metavar
+    # above keeps it out of the usage line).
+    serve_parser = subparsers.add_parser("serve")
+    add_web_args(serve_parser)
 
     version_parser = subparsers.add_parser(
         "version",

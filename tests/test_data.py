@@ -118,6 +118,22 @@ def solution(people):
     return Solution(round=1, pairs=pairs, cost=10, caviats=caviats)
 
 
+def test_solution_optimal_defaults_true(people):
+    sol = Solution(round=1, pairs=frozenset(), cost=0, caviats={})
+    assert sol.optimal is True
+    # an optimal solution stays byte-compatible — no extra key written
+    assert "optimal" not in sol.dumps()
+
+
+def test_solution_optimal_roundtrips_when_false(people):
+    pair = Pair(primary=people["Alice"], secondary=people["Bob"])
+    sol = Solution(round=1, pairs=frozenset({pair}), cost=5, caviats={}, optimal=False)
+    text = sol.dumps()
+    assert "optimal = false" in text
+    # the time-limited flag must survive a load (so it persists across reloads)
+    assert Solution.loads(text, people=people).optimal is False
+
+
 def test_solution_dumps(solution):
     toml_str = solution.dumps()
     print(toml_str)
@@ -303,6 +319,125 @@ def test_people_loads_invalid_csv():
 
     with pytest.raises(ValueError):
         Person.loads(people_csv_data)
+
+
+def test_people_loads_missing_name_raises():
+    data = dedent("""\
+        name,organisation,email,active
+        ,Org,nobody@example.com,True
+        """)
+    with pytest.raises(ValueError):
+        Person.loads(data)
+
+
+def test_people_loads_duplicate_name_raises():
+    data = dedent("""\
+        name,organisation,email,active
+        Alice,someplace,alice@example.com,True
+        Alice,elsewhere,alice2@example.com,True
+        """)
+    with pytest.raises(ValueError):
+        Person.loads(data)
+
+
+def test_people_loads_active_flag_variants():
+    data = dedent("""\
+        name,organisation,email,active
+        Upper,o,a@x,TRUE
+        Lower,o,b@x,true
+        Yes,o,c@x,yes
+        One,o,d@x,1
+        Blank,o,e@x,
+        Cap,o,f@x,FALSE
+        Zero,o,g@x,0
+        No,o,h@x,no
+        Junk,o,i@x,garbage
+        """)
+    people = Person.loads(data)
+    active = {name: p.active for name, p in people.items()}
+    assert active == {
+        "Upper": True,
+        "Lower": True,
+        "Yes": True,
+        "One": True,
+        "Blank": True,
+        "Cap": False,
+        "Zero": False,
+        "No": False,
+        "Junk": False,
+    }
+
+
+def test_people_loads_ignores_extra_columns():
+    data = dedent("""\
+        name,organisation,email,active,phone,notes
+        Alice,Org,alice@example.com,True,12345,hi there
+        """)
+    people = Person.loads(data)
+    assert people["Alice"].organisation == "Org"
+    assert people["Alice"].email == "alice@example.com"
+
+
+def test_people_loads_is_column_order_independent():
+    data = dedent("""\
+        active,email,organisation,name
+        TRUE,z@x,Org,Zed
+        """)
+    person = Person.loads(data)["Zed"]
+    assert person.name == "Zed"
+    assert person.organisation == "Org"
+    assert person.email == "z@x"
+    assert person.active is True
+
+
+def test_person_dumps_csv_format():
+    people = [
+        Person(name="Alice", organisation="Org1", email="a@x", active=True),
+        Person(name="Bob", organisation="Org2", email="b@x", active=False),
+    ]
+    out = Person.dumps_csv(people)
+    lines = out.splitlines()
+    assert lines[0] == "name,organisation,email,active"
+    assert lines[1] == "Alice,Org1,a@x,TRUE"
+    assert lines[2] == "Bob,Org2,b@x,FALSE"
+
+
+def test_person_dumps_csv_quotes_special_characters():
+    people = [
+        Person(
+            name='O\'Brien, "Bob"',
+            organisation="R&D, East",
+            email="b@x",
+            active=True,
+        )
+    ]
+    out = Person.dumps_csv(people)
+    # commas and quotes must be quoted/escaped so columns don't shift
+    reloaded = Person.loads(out)
+    assert 'O\'Brien, "Bob"' in reloaded
+    assert reloaded['O\'Brien, "Bob"'].organisation == "R&D, East"
+
+
+def test_person_csv_roundtrip_preserves_everything():
+    people = {
+        "Alice": Person(name="Alice", organisation="Org1", email="a@x", active=True),
+        "Dave": Person(name="Dave", organisation="", email="", active=False),
+        "Zoé, Jr.": Person(
+            name="Zoé, Jr.", organisation="Çafé", email="z@x", active=True
+        ),
+    }
+    roundtripped = Person.loads(Person.dumps_csv(people.values()))
+    assert roundtripped == people
+
+
+def test_person_dumps_csv_preserves_order():
+    people = [
+        Person(name=n, organisation="o", email="e", active=True)
+        for n in ["Charlie", "Alice", "Bob"]
+    ]
+    out = Person.dumps_csv(people)
+    names = [line.split(",")[0] for line in out.splitlines()[1:] if line]
+    assert names == ["Charlie", "Alice", "Bob"]
 
 
 def test_solution_loads_csv(people):

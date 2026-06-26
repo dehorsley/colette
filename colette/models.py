@@ -80,6 +80,32 @@ class Person:
 
         return people
 
+    @staticmethod
+    def dumps_csv(people) -> str:
+        """Serialise an iterable of Person objects to a CSV string.
+
+        The output matches the format expected by :meth:`Person.load` with the
+        canonical column order ``name,organisation,email,active``.
+        """
+        buf = io.StringIO()
+        writer = csv.writer(buf, lineterminator="\n")
+        writer.writerow(["name", "organisation", "email", "active"])
+        for person in people:
+            writer.writerow(
+                [
+                    person.name,
+                    person.organisation,
+                    person.email,
+                    "TRUE" if person.active else "FALSE",
+                ]
+            )
+        return buf.getvalue()
+
+    @staticmethod
+    def dump_csv(path: PathLike, people):
+        with open(path, "w", newline="") as f:
+            f.write(Person.dumps_csv(people))
+
 
 @dataclass(frozen=True, order=True)
 class Pair:
@@ -275,6 +301,9 @@ class Solution:
     round: int
     pairs: frozenset[Pair]
     caviats: dict[Pair, list[str]]
+    # False if the solver hit its time limit before proving optimality (the
+    # pairing is still valid, just not guaranteed to be the lowest-cost one).
+    optimal: bool = True
 
     def __contains__(self, item):
         # if item is a set of people,
@@ -306,6 +335,11 @@ class Solution:
         doc = tomlkit.document()
         doc.add("cost", self.cost)
         doc.add("round", self.round)
+
+        # Only record when the solver couldn't prove optimality, so ordinary
+        # solutions stay byte-for-byte as before.
+        if not self.optimal:
+            doc.add("optimal", False)
 
         pair_table = tomlkit.aot()
 
@@ -383,7 +417,13 @@ class Solution:
             if "caviats" in p:
                 caviats[pair] = p["caviats"]
 
-        return Solution(round=round, pairs=pairs, cost=cost, caviats=caviats)
+        return Solution(
+            round=round,
+            pairs=pairs,
+            cost=cost,
+            caviats=caviats,
+            optimal=d.get("optimal", True),
+        )
 
     @staticmethod
     def loads_csv(s: str, people: dict[str, Person], round: int) -> "Solution":
